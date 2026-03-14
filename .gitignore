@@ -3,4 +3,3 @@ node_modules/
 mobile/.expo/
 mobile/android/
 mobile/ios/
-mobile/assets/*.png
