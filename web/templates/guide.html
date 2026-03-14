@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Guide – HMIS FP Register</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="/static/css/style.css" rel="stylesheet">
+</head>
+<body>
+  <div class="sidebar" id="sidebar">
+    <div class="brand"><i class="bi bi-heart-pulse"></i> FP Register <span class="badge bg-info">v1.0</span></div>
+    <nav class="mt-2">
+      <div class="nav-section">Main</div>
+      <a href="/dashboard" class="nav-link"><i class="bi bi-speedometer2"></i> Dashboard</a>
+      <a href="/register" class="nav-link"><i class="bi bi-plus-circle"></i> New Entry</a>
+      <a href="/submissions" class="nav-link"><i class="bi bi-table"></i> Submissions</a>
+      <a href="/guide" class="nav-link"><i class="bi bi-book"></i> Guide</a>
+      <div class="nav-section admin-only">Administration</div>
+      <a href="/admin/users" class="nav-link admin-only"><i class="bi bi-people"></i> Users</a>
+      <a href="/admin/facilities" class="nav-link superadmin-only"><i class="bi bi-hospital"></i> Facilities</a>
+      <a href="/admin/audit-logs" class="nav-link admin-only"><i class="bi bi-shield-check"></i> Audit Logs</a>
+    </nav>
+    <div class="user-info">
+      <div class="fw-semibold user-name"></div>
+      <small class="user-role text-capitalize opacity-75"></small>
+      <div class="mt-1"><a href="#" onclick="App.logout()" class="text-danger text-decoration-none" style="font-size:.78rem"><i class="bi bi-box-arrow-left"></i> Sign Out</a></div>
+    </div>
+  </div>
+
+  <div class="main-content">
+    <div class="top-bar">
+      <div>
+        <button class="btn btn-sm btn-outline-secondary d-lg-none me-2" onclick="document.getElementById('sidebar').classList.toggle('show')"><i class="bi bi-list"></i></button>
+        <strong>User Guide &amp; Manual</strong>
+      </div>
+    </div>
+
+    <div class="content-area">
+      <div class="card mb-4">
+        <div class="card-body">
+          <h4 class="text-primary mb-3">HMIS MCH 007: Integrated Family Planning Register</h4>
+          <p class="text-muted">This digital system implements the Uganda Ministry of Health HMIS Form 007 – Integrated Family Planning Register (Print Version July 2024). This guide explains how to use the system and how each field maps to the paper register.</p>
+        </div>
+      </div>
+
+      <!-- Table of Contents -->
+      <div class="card mb-4">
+        <div class="card-header"><i class="bi bi-list-ol me-1"></i> Contents</div>
+        <div class="card-body">
+          <ol class="mb-0">
+            <li><a href="#purpose">Purpose of the Register</a></li>
+            <li><a href="#sections">Form Sections Guide</a></li>
+            <li><a href="#option-sets">Option Sets Reference</a></li>
+            <li><a href="#skip-logic">Skip Logic Rules</a></li>
+            <li><a href="#client-number">Client Number Generation</a></li>
+            <li><a href="#roles">User Roles &amp; Data Access</a></li>
+            <li><a href="#validation">Common Validation Errors</a></li>
+            <li><a href="#api">API Usage for Mobile Apps</a></li>
+          </ol>
+        </div>
+      </div>
+
+      <!-- 1. Purpose -->
+      <div class="guide-section" id="purpose">
+        <h4><i class="bi bi-info-circle me-1"></i> 1. Purpose of the Register</h4>
+        <div class="card">
+          <div class="card-body">
+            <p>The Integrated Family Planning Register records all family planning client visits at a health facility. It captures:</p>
+            <ul>
+              <li>Client identification and demographics</li>
+              <li>Visit type (new user or revisit)</li>
+              <li>HIV testing status</li>
+              <li>FP counseling delivered</li>
+              <li>Contraceptive methods dispensed (pills, condoms, injectables, implants, IUDs, permanent methods, FAM)</li>
+              <li>Post-pregnancy FP timing</li>
+              <li>LARC removals</li>
+              <li>Side effects reported</li>
+              <li>Cancer screening and STI screening</li>
+              <li>Referrals</li>
+            </ul>
+            <p>Every client accessing family planning services must be registered, including counseling-only visits and visitors who will not return for refills.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Sections -->
+      <div class="guide-section" id="sections">
+        <h4><i class="bi bi-layout-text-sidebar me-1"></i> 2. Form Sections Guide</h4>
+
+        <div class="accordion" id="sectionAccordion">
+          <!-- Visit Info -->
+          <div class="accordion-item">
+            <h2 class="accordion-header"><button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#sec1">Visit Information</button></h2>
+            <div id="sec1" class="accordion-collapse collapse show" data-bs-parent="#sectionAccordion">
+              <div class="accordion-body">
+                <table class="table table-sm guide-table">
+                  <tr><td>Visit Date</td><td>The date the client visits. Defaults to today. Serial number is auto-assigned daily.</td></tr>
+                  <tr><td>Visitor</td><td>Tick this if the client will not return for refills at your facility. Visitors do not receive a client number.</td></tr>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Client Information -->
+          <div class="accordion-item">
+            <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sec2">Client Information (Columns 2–7)</button></h2>
+            <div id="sec2" class="accordion-collapse collapse" data-bs-parent="#sectionAccordion">
+              <div class="accordion-body">
+                <table class="table table-sm guide-table">
+                  <tr><td>NIN</td><td>National Identification Number from the client's national ID card. Copy it exactly as printed.</td></tr>
+                  <tr><td>Name</td><td>Surname and given name. Both are required.</td></tr>
+                  <tr><td>Phone</td><td>Active phone number for follow-up.</td></tr>
+                  <tr><td>Sex</td><td>M for Male, F for Female. This controls which fields appear (e.g., vasectomy for males, tubal ligation and cervical screening for females).</td></tr>
+                  <tr><td>Age</td><td>Client's age in completed years (e.g., 23, 45).</td></tr>
+                  <tr><td>Address</td><td>Village/Cell/Zone, Parish/Ward, Subcounty/Division, District/City.</td></tr>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Visit Type -->
+          <div class="accordion-item">
+            <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sec3">Visit Type & History (Columns 8–11)</button></h2>
+            <div id="sec3" class="accordion-collapse collapse" data-bs-parent="#sectionAccordion">
+              <div class="accordion-body">
+                <table class="table table-sm guide-table">
+                  <tr><td>New User</td><td>Tick if the client has <strong>never</strong> used any modern FP method before (from any source). A new user is taking up a modern FP method for the 1st time ever.</td></tr>
+                  <tr><td>Revisit</td><td>Tick if the client has used a modern FP method before and is returning. These two are mutually exclusive.</td></tr>
+                  <tr><td>Previous Method</td><td>Only appears for revisit clients. Select the method the client previously used.</td></tr>
+                  <tr><td>HTS</td><td>HIV Testing Services result: NEG (Negative), POS (Positive), INC (Inconclusive), UKN (Unknown/not tested).</td></tr>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Counseling -->
+          <div class="accordion-item">
+            <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sec4">FP Counseling & Method Switching (Columns 12–13)</button></h2>
+            <div id="sec4" class="accordion-collapse collapse" data-bs-parent="#sectionAccordion">
+              <div class="accordion-body">
+                <table class="table table-sm guide-table">
+                  <tr><td>Individual/Couple</td><td>Whether counseling was done individually or as a couple.</td></tr>
+                  <tr><td>OM</td><td>Counseled on all <strong>Options/Methods</strong> available.</td></tr>
+                  <tr><td>SE</td><td>Counseled on possible <strong>Side Effects</strong> for all methods.</td></tr>
+                  <tr><td>WD</td><td>Counseled on <strong>What to Do</strong> in case of side effects.</td></tr>
+                  <tr><td>MS</td><td>Counseled on possibility of <strong>Method Switch</strong>.</td></tr>
+                  <tr><td>Switching</td><td>Tick if the client is changing from one method to another. If yes, provide the reason code.</td></tr>
+                </table>
+                <p class="text-info mt-2"><small>Every client accessing FP services MUST be counseled to make an informed choice.</small></p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Contraceptives -->
+          <div class="accordion-item">
+            <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sec5">Contraceptives Dispensed (Columns 14–20)</button></h2>
+            <div id="sec5" class="accordion-collapse collapse" data-bs-parent="#sectionAccordion">
+              <div class="accordion-body">
+                <table class="table table-sm guide-table">
+                  <tr><td>Oral Pills</td><td>Enter number of cycles dispensed for CoCs, POP, or pieces for ECP.</td></tr>
+                  <tr><td>Condoms</td><td>Units dispensed for contraception purpose only. Separate male and female.</td></tr>
+                  <tr><td>Injectables</td><td>Number of doses: DMPA-IM (intramuscular), DMPA-SC Provider Administered (PA), DMPA-SC Self-Injected (SI). Clients can be issued up to 4 doses of DMPA-SC SI.</td></tr>
+                  <tr><td>Implants</td><td>Tick 3-year or 5-year implant inserted.</td></tr>
+                  <tr><td>IUDs</td><td>Tick: Copper-T, or Hormonal 3-year/5-year.</td></tr>
+                  <tr><td>Sterilization</td><td>Tubal ligation (females) or Vasectomy (males).</td></tr>
+                  <tr><td>FAM</td><td>Fertility Awareness Methods: Standard Days, LAM, Two Day Method.</td></tr>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Post-Pregnancy & LARC -->
+          <div class="accordion-item">
+            <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sec6">Post-Pregnancy FP & LARC Removal (Columns 21–22)</button></h2>
+            <div id="sec6" class="accordion-collapse collapse" data-bs-parent="#sectionAccordion">
+              <div class="accordion-body">
+                <p>If the client recently delivered or experienced an abortion, record the timing code for when the FP method was given.</p>
+                <p>For LARC removal (implant or IUD), record the reason code and timing code.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Side Effects & Other Services -->
+          <div class="accordion-item">
+            <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sec7">Side Effects & Other Services (Columns 23–27)</button></h2>
+            <div id="sec7" class="accordion-collapse collapse" data-bs-parent="#sectionAccordion">
+              <div class="accordion-body">
+                <p>Select any side effects reported by the client from the checklist. Multiple can be selected.</p>
+                <p>Cancer screening captures cervical cancer (method, status, treatment if positive) and breast cancer screening.</p>
+                <p>Record STI screening status and any referrals made.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Option Sets -->
+      <div class="guide-section" id="option-sets">
+        <h4><i class="bi bi-tags me-1"></i> 3. Option Sets Reference</h4>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div class="card">
+              <div class="card-header">HTS Codes</div>
+              <div class="card-body p-0">
+                <table class="table table-sm mb-0"><tbody>
+                  <tr><td><code>NEG</code></td><td>Negative</td></tr>
+                  <tr><td><code>POS</code></td><td>Positive</td></tr>
+                  <tr><td><code>INC</code></td><td>Inconclusive</td></tr>
+                  <tr><td><code>UKN</code></td><td>Unknown (not tested)</td></tr>
+                </tbody></table>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="card">
+              <div class="card-header">Switching Reason Codes</div>
+              <div class="card-body p-0">
+                <table class="table table-sm mb-0"><tbody>
+                  <tr><td><code>SE</code></td><td>Side Effects</td></tr>
+                  <tr><td><code>OS</code></td><td>Stock Outs</td></tr>
+                  <tr><td><code>CFI</code></td><td>Change in Fertility Intention</td></tr>
+                  <tr><td><code>O</code></td><td>Others</td></tr>
+                </tbody></table>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="card">
+              <div class="card-header">Postpartum FP Timing Codes</div>
+              <div class="card-body p-0">
+                <table class="table table-sm mb-0"><tbody>
+                  <tr><td><code>1</code></td><td>Within 48 hours</td></tr>
+                  <tr><td><code>2</code></td><td>3 days to 3 weeks</td></tr>
+                  <tr><td><code>3</code></td><td>4 weeks to 6 weeks</td></tr>
+                  <tr><td><code>4</code></td><td>7 weeks to 5 months</td></tr>
+                  <tr><td><code>5</code></td><td>6 months to 12 months</td></tr>
+                </tbody></table>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="card">
+              <div class="card-header">Post-Abortion FP Timing Codes</div>
+              <div class="card-body p-0">
+                <table class="table table-sm mb-0"><tbody>
+                  <tr><td><code>1</code></td><td>Within 48 hours</td></tr>
+                  <tr><td><code>2</code></td><td>3 days to 1 week</td></tr>
+                  <tr><td><code>3</code></td><td>8 days to 2 weeks</td></tr>
+                </tbody></table>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="card">
+              <div class="card-header">LARC Removal Reason Codes</div>
+              <div class="card-body p-0">
+                <table class="table table-sm mb-0"><tbody>
+                  <tr><td><code>1</code></td><td>On-schedule</td></tr>
+                  <tr><td><code>2</code></td><td>Side Effects</td></tr>
+                  <tr><td><code>3</code></td><td>Change in Fertility Intention</td></tr>
+                  <tr><td><code>4</code></td><td>Gender Based Violence</td></tr>
+                  <tr><td><code>5</code></td><td>Others (Specify in Remarks)</td></tr>
+                </tbody></table>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="card">
+              <div class="card-header">LARC Removal Timing Codes</div>
+              <div class="card-body p-0">
+                <table class="table table-sm mb-0"><tbody>
+                  <tr><td><code>1</code></td><td>Within 3 months</td></tr>
+                  <tr><td><code>2</code></td><td>4–6 months</td></tr>
+                  <tr><td><code>3</code></td><td>7–12 months</td></tr>
+                  <tr><td><code>4</code></td><td>13–18 months</td></tr>
+                  <tr><td><code>5</code></td><td>19–35 months</td></tr>
+                  <tr><td><code>6</code></td><td>At 36 months</td></tr>
+                  <tr><td><code>7</code></td><td>Above 36 months</td></tr>
+                </tbody></table>
+              </div>
+            </div>
+          </div>
+          <div class="col-12">
+            <div class="card">
+              <div class="card-header">Side Effect Codes</div>
+              <div class="card-body">
+                <div class="row">
+                  <div class="col-md-4">
+                    <table class="table table-sm mb-0"><tbody>
+                      <tr><td><code>IB</code></td><td>Irregular Bleeding</td></tr>
+                      <tr><td><code>HB</code></td><td>Heavy Bleeding</td></tr>
+                      <tr><td><code>NB</code></td><td>No Monthly Bleeding</td></tr>
+                      <tr><td><code>NV</code></td><td>Nausea/Vomiting/Dizziness</td></tr>
+                      <tr><td><code>ISR</code></td><td>Injection Site Reaction</td></tr>
+                    </tbody></table>
+                  </div>
+                  <div class="col-md-4">
+                    <table class="table table-sm mb-0"><tbody>
+                      <tr><td><code>INSR</code></td><td>Insertion Site Reaction</td></tr>
+                      <tr><td><code>HE</code></td><td>Headache</td></tr>
+                      <tr><td><code>MO</code></td><td>Mood Changes</td></tr>
+                      <tr><td><code>BR</code></td><td>Breast Tenderness</td></tr>
+                      <tr><td><code>CR</code></td><td>Cramping/Mild Abdominal Pain</td></tr>
+                    </tbody></table>
+                  </div>
+                  <div class="col-md-4">
+                    <table class="table table-sm mb-0"><tbody>
+                      <tr><td><code>SAP</code></td><td>Severe Lower Abdominal Pain</td></tr>
+                      <tr><td><code>WG</code></td><td>Weight Gain</td></tr>
+                      <tr><td><code>SP</code></td><td>Suspected Pregnancy</td></tr>
+                      <tr><td><code>AC</code></td><td>Acne</td></tr>
+                      <tr><td><code>ETC</code></td><td>Others (specify in remarks)</td></tr>
+                    </tbody></table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. Skip Logic -->
+      <div class="guide-section" id="skip-logic">
+        <h4><i class="bi bi-signpost-split me-1"></i> 4. Skip Logic Rules</h4>
+        <div class="card">
+          <div class="card-body">
+            <table class="table table-sm">
+              <thead><tr><th>Rule</th><th>Behaviour</th></tr></thead>
+              <tbody>
+                <tr><td>New User / Revisit</td><td>Mutually exclusive. Only one can be selected. Selecting one unchecks the other.</td></tr>
+                <tr><td>Previous Method</td><td>Only shown when "Revisit" is ticked.</td></tr>
+                <tr><td>Switching Reason</td><td>Only shown when "Switching Method" is ticked.</td></tr>
+                <tr><td>Sex = Male</td><td>Hides tubal ligation, cervical cancer screening, breast cancer screening. Shows vasectomy.</td></tr>
+                <tr><td>Sex = Female</td><td>Hides vasectomy. Shows tubal ligation, cervical and breast cancer screening.</td></tr>
+                <tr><td>Cervical Cancer Treatment</td><td>Only shown when cervical cancer status is "Positive" (code 2).</td></tr>
+                <tr><td>Implant Removal Timing</td><td>Only shown when an implant removal reason is selected.</td></tr>
+                <tr><td>IUD Removal Timing</td><td>Only shown when an IUD removal reason is selected.</td></tr>
+                <tr><td>Client Number</td><td>Not generated for visitors. If "Visitor" is ticked, no client number is assigned.</td></tr>
+              </tbody>
+            </table>
+            <p class="text-info"><small>Skip logic is enforced both on the form (frontend) and in backend validation to prevent invalid data.</small></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. Client Number -->
+      <div class="guide-section" id="client-number">
+        <h4><i class="bi bi-hash me-1"></i> 5. Client Number Generation</h4>
+        <div class="card">
+          <div class="card-body">
+            <p>Client numbers are automatically generated when a new registration is saved (unless the client is a visitor).</p>
+            <p><strong>Format:</strong> <code>{FacilityPrefix}{YYMMDD}{NNN}</code></p>
+            <p><strong>Example:</strong> <code>DHC260314001</code> = Demo Health Centre, 14 March 2026, 1st client of the day.</p>
+            <ul>
+              <li><strong>Facility Prefix</strong>: 2–5 character code configured for each facility (e.g., DHC, MRH).</li>
+              <li><strong>Date</strong>: 6-digit date in YYMMDD format.</li>
+              <li><strong>Sequence</strong>: 3-digit daily sequence number starting at 001, reset per facility per day.</li>
+            </ul>
+            <p>The system uses database-level row locking to prevent duplicate numbers even under concurrent requests.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6. Roles -->
+      <div class="guide-section" id="roles">
+        <h4><i class="bi bi-people me-1"></i> 6. User Roles & Data Access</h4>
+        <div class="card">
+          <div class="card-body">
+            <table class="table table-sm">
+              <thead><tr><th>Role</th><th>Can See</th><th>Can Do</th></tr></thead>
+              <tbody>
+                <tr><td><code>superadmin</code></td><td>All facilities, all data</td><td>Everything: manage facilities, users, view audit logs, all registrations</td></tr>
+                <tr><td><code>facility_admin</code></td><td>Own facility data only</td><td>Create/edit registrations, manage facility users, view facility audit logs</td></tr>
+                <tr><td><code>facility_user</code></td><td>Own facility data only</td><td>Create and view registrations for their facility</td></tr>
+                <tr><td><code>reviewer</code></td><td>Own facility data only</td><td>View registrations (read-only access for supervision)</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 7. Validation Errors -->
+      <div class="guide-section" id="validation">
+        <h4><i class="bi bi-exclamation-circle me-1"></i> 7. Common Validation Errors</h4>
+        <div class="card">
+          <div class="card-body">
+            <table class="table table-sm">
+              <thead><tr><th>Error</th><th>Cause</th><th>Solution</th></tr></thead>
+              <tbody>
+                <tr><td>"Visit date is required"</td><td>Date field is empty</td><td>Select today's date or the visit date</td></tr>
+                <tr><td>"Must be either new user or revisit"</td><td>Neither checkbox is ticked</td><td>Tick one of the two</td></tr>
+                <tr><td>"Cannot be both new user and revisit"</td><td>Both are ticked</td><td>Untick one</td></tr>
+                <tr><td>"Previous method required for revisit"</td><td>Revisit is ticked but no previous method selected</td><td>Select the previous method</td></tr>
+                <tr><td>"Reason required when switching method"</td><td>Switching is ticked but no reason selected</td><td>Select a switching reason</td></tr>
+                <tr><td>"Sex must be M or F"</td><td>Sex field is empty</td><td>Select the client's sex</td></tr>
+                <tr><td>"Age must be between 0 and 120"</td><td>Age is missing or invalid</td><td>Enter the client's age in completed years</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 8. API -->
+      <div class="guide-section" id="api">
+        <h4><i class="bi bi-code-slash me-1"></i> 8. API Usage for Mobile Apps</h4>
+        <div class="card">
+          <div class="card-body">
+            <p>All functionality is available through REST API endpoints at <code>/api/v1/</code>. A mobile app can consume the same endpoints used by the web interface.</p>
+            <table class="table table-sm">
+              <thead><tr><th>Endpoint Group</th><th>Base Path</th><th>Auth Required</th></tr></thead>
+              <tbody>
+                <tr><td>Authentication</td><td><code>/api/v1/auth</code></td><td>Login/refresh: No. Logout/me: Yes</td></tr>
+                <tr><td>Registrations</td><td><code>/api/v1/registrations</code></td><td>Yes</td></tr>
+                <tr><td>Option Sets</td><td><code>/api/v1/option-sets</code></td><td>Yes</td></tr>
+                <tr><td>Facilities</td><td><code>/api/v1/facilities</code></td><td>Yes</td></tr>
+                <tr><td>Users</td><td><code>/api/v1/users</code></td><td>Yes (admin)</td></tr>
+                <tr><td>Audit Logs</td><td><code>/api/v1/audit-logs</code></td><td>Yes (admin)</td></tr>
+              </tbody>
+            </table>
+            <p>Full interactive API documentation is available at <a href="/swagger/index.html" target="_blank">/swagger/index.html</a>.</p>
+            <h6 class="mt-3">Offline Sync Recommendation</h6>
+            <p>For mobile apps that need offline support, we recommend:</p>
+            <ul>
+              <li>Cache option sets locally on app start (they rarely change)</li>
+              <li>Queue registrations locally when offline</li>
+              <li>Sync queued records when connectivity is restored using <code>POST /api/v1/registrations</code></li>
+              <li>Use the client number response to update local records with the server-assigned number</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/static/js/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!App.requireAuth()) return;
+      App.initSidebar();
+    });
+  </script>
+</body>
+</html>

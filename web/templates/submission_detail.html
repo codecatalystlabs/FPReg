@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Submission Detail – HMIS FP Register</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="/static/css/style.css" rel="stylesheet">
+</head>
+<body>
+  <div class="sidebar" id="sidebar">
+    <div class="brand"><i class="bi bi-heart-pulse"></i> FP Register <span class="badge bg-info">v1.0</span></div>
+    <nav class="mt-2">
+      <div class="nav-section">Main</div>
+      <a href="/dashboard" class="nav-link"><i class="bi bi-speedometer2"></i> Dashboard</a>
+      <a href="/register" class="nav-link"><i class="bi bi-plus-circle"></i> New Entry</a>
+      <a href="/submissions" class="nav-link"><i class="bi bi-table"></i> Submissions</a>
+      <a href="/guide" class="nav-link"><i class="bi bi-book"></i> Guide</a>
+      <div class="nav-section admin-only">Administration</div>
+      <a href="/admin/users" class="nav-link admin-only"><i class="bi bi-people"></i> Users</a>
+      <a href="/admin/facilities" class="nav-link superadmin-only"><i class="bi bi-hospital"></i> Facilities</a>
+      <a href="/admin/audit-logs" class="nav-link admin-only"><i class="bi bi-shield-check"></i> Audit Logs</a>
+    </nav>
+    <div class="user-info">
+      <div class="fw-semibold user-name"></div>
+      <small class="user-role text-capitalize opacity-75"></small>
+      <div class="mt-1"><a href="#" onclick="App.logout()" class="text-danger text-decoration-none" style="font-size:.78rem"><i class="bi bi-box-arrow-left"></i> Sign Out</a></div>
+    </div>
+  </div>
+
+  <div class="main-content">
+    <div class="top-bar">
+      <div>
+        <button class="btn btn-sm btn-outline-secondary d-lg-none me-2" onclick="document.getElementById('sidebar').classList.toggle('show')"><i class="bi bi-list"></i></button>
+        <a href="/submissions" class="text-decoration-none me-2"><i class="bi bi-arrow-left"></i></a>
+        <strong>Submission Detail</strong>
+      </div>
+    </div>
+
+    <div class="content-area" id="detailContent">
+      <div class="text-center py-5"><div class="spinner-border text-primary"></div></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/static/js/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      if (!App.requireAuth()) return;
+      App.initSidebar();
+
+      const pathParts = window.location.pathname.split('/');
+      const id = pathParts[pathParts.length - 1];
+      const container = document.getElementById('detailContent');
+
+      try {
+        const data = await App.api('GET', `/registrations/${id}`);
+        const r = data.data;
+
+        const yn = v => v ? 'Yes' : 'No';
+        const val = v => v || '–';
+        const check = v => v ? '<i class="bi bi-check-circle-fill text-success"></i>' : '<i class="bi bi-dash text-muted"></i>';
+
+        container.innerHTML = `
+          <div class="row g-3 mb-3">
+            <div class="col-md-4">
+              <div class="card p-3">
+                <div class="text-muted" style="font-size:.75rem">CLIENT NUMBER</div>
+                <div class="fs-4 fw-bold">${r.client_number || 'Visitor'}</div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="card p-3">
+                <div class="text-muted" style="font-size:.75rem">SERIAL #</div>
+                <div class="fs-4 fw-bold">${r.serial_number}</div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="card p-3">
+                <div class="text-muted" style="font-size:.75rem">VISIT DATE</div>
+                <div class="fs-4 fw-bold">${r.visit_date}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Client Information -->
+          <div class="card mb-3">
+            <div class="card-header">Client Information</div>
+            <div class="card-body">
+              <div class="row">
+                <div class="col-md-3"><strong>Name:</strong> ${r.surname} ${r.given_name}</div>
+                <div class="col-md-2"><strong>Sex:</strong> ${r.sex}</div>
+                <div class="col-md-2"><strong>Age:</strong> ${r.age}</div>
+                <div class="col-md-2"><strong>NIN:</strong> ${val(r.nin)}</div>
+                <div class="col-md-3"><strong>Phone:</strong> ${val(r.phone_number)}</div>
+              </div>
+              <div class="row mt-2">
+                <div class="col-md-3"><strong>Village:</strong> ${val(r.village)}</div>
+                <div class="col-md-3"><strong>Parish:</strong> ${val(r.parish)}</div>
+                <div class="col-md-3"><strong>Subcounty:</strong> ${val(r.subcounty)}</div>
+                <div class="col-md-3"><strong>District:</strong> ${val(r.district)}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Visit Type -->
+          <div class="card mb-3">
+            <div class="card-header">Visit Type & Counseling</div>
+            <div class="card-body">
+              <div class="row">
+                <div class="col-md-2">${check(r.is_new_user)} New User</div>
+                <div class="col-md-2">${check(r.is_revisit)} Revisit</div>
+                <div class="col-md-3"><strong>Previous Method:</strong> ${val(r.previous_method)}</div>
+                <div class="col-md-2"><strong>HTS:</strong> ${val(r.hts_code)}</div>
+                <div class="col-md-3"><strong>Switching:</strong> ${r.is_switching ? 'Yes (' + val(r.switching_reason) + ')' : 'No'}</div>
+              </div>
+              <div class="row mt-2">
+                <div class="col-md-2">${check(r.counseling_individual)} Individual</div>
+                <div class="col-md-2">${check(r.counseling_as_couple)} Couple</div>
+                <div class="col-md-1">${check(r.counseling_om)} OM</div>
+                <div class="col-md-1">${check(r.counseling_se)} SE</div>
+                <div class="col-md-1">${check(r.counseling_wd)} WD</div>
+                <div class="col-md-1">${check(r.counseling_ms)} MS</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Contraceptives -->
+          <div class="card mb-3">
+            <div class="card-header">Contraceptives Dispensed</div>
+            <div class="card-body">
+              <div class="row">
+                <div class="col-md-2"><strong>CoC:</strong> ${r.pills_coc_cycles}</div>
+                <div class="col-md-2"><strong>POP:</strong> ${r.pills_pop_cycles}</div>
+                <div class="col-md-2"><strong>ECP:</strong> ${r.pills_ecp_pieces}</div>
+                <div class="col-md-2"><strong>Male Condoms:</strong> ${r.condoms_male_units}</div>
+                <div class="col-md-2"><strong>Female Condoms:</strong> ${r.condoms_female_units}</div>
+              </div>
+              <div class="row mt-2">
+                <div class="col-md-2"><strong>DMPA-IM:</strong> ${r.injectable_dmpa_im_doses}</div>
+                <div class="col-md-2"><strong>DMPA-SC PA:</strong> ${r.injectable_dmpa_sc_pa_doses}</div>
+                <div class="col-md-2"><strong>DMPA-SC SI:</strong> ${r.injectable_dmpa_sc_si_doses}</div>
+              </div>
+              <div class="row mt-2">
+                <div class="col-md-2">${check(r.implant_3_years)} Implant 3Y</div>
+                <div class="col-md-2">${check(r.implant_5_years)} Implant 5Y</div>
+                <div class="col-md-2">${check(r.iud_copper_t)} IUD CuT</div>
+                <div class="col-md-2">${check(r.iud_hormonal_3_years)} IUD H3Y</div>
+                <div class="col-md-2">${check(r.iud_hormonal_5_years)} IUD H5Y</div>
+              </div>
+              <div class="row mt-2">
+                <div class="col-md-2">${check(r.tubal_ligation)} Tubal Lig.</div>
+                <div class="col-md-2">${check(r.vasectomy)} Vasectomy</div>
+                <div class="col-md-2">${check(r.fam_standard_days)} SDM</div>
+                <div class="col-md-2">${check(r.fam_lam)} LAM</div>
+                <div class="col-md-2">${check(r.fam_two_day)} Two Day</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Post-Pregnancy & LARC -->
+          <div class="card mb-3">
+            <div class="card-header">Post-Pregnancy & LARC Removal</div>
+            <div class="card-body">
+              <div class="row">
+                <div class="col-md-3"><strong>Postpartum FP:</strong> ${val(r.postpartum_fp_timing)}</div>
+                <div class="col-md-3"><strong>Post-Abortion FP:</strong> ${val(r.post_abortion_fp_timing)}</div>
+                <div class="col-md-3"><strong>Implant Removal:</strong> ${val(r.implant_removal_reason)} / ${val(r.implant_removal_timing)}</div>
+                <div class="col-md-3"><strong>IUD Removal:</strong> ${val(r.iud_removal_reason)} / ${val(r.iud_removal_timing)}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Side Effects & Other Services -->
+          <div class="card mb-3">
+            <div class="card-header">Side Effects & Other Services</div>
+            <div class="card-body">
+              <div class="row">
+                <div class="col-md-4"><strong>Side Effects:</strong> ${val(r.side_effects)}</div>
+                <div class="col-md-3"><strong>Cervical Screen:</strong> ${val(r.cervical_screening_method)} / ${val(r.cervical_cancer_status)}</div>
+                <div class="col-md-2"><strong>CC Treatment:</strong> ${val(r.cervical_cancer_treatment)}</div>
+                <div class="col-md-3"><strong>Breast Screen:</strong> ${val(r.breast_cancer_screening)}</div>
+              </div>
+              <div class="row mt-2">
+                <div class="col-md-3"><strong>STI Screened:</strong> ${r.screened_for_sti === true ? 'Yes' : r.screened_for_sti === false ? 'No' : '–'}</div>
+                <div class="col-md-3"><strong>Referral #:</strong> ${val(r.referral_number)}</div>
+                <div class="col-md-6"><strong>Referral Reason:</strong> ${val(r.referral_reason)}</div>
+              </div>
+              <div class="row mt-2">
+                <div class="col-12"><strong>Remarks:</strong> ${val(r.remarks)}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Meta -->
+          <div class="text-muted" style="font-size:.75rem">
+            Created: ${App.formatDate(r.created_at)} &middot;
+            Facility: ${r.facility?.name || '–'} &middot;
+            By: ${r.creator?.full_name || '–'}
+          </div>
+        `;
+      } catch (e) {
+        container.innerHTML = '<div class="alert alert-danger">Failed to load submission details.</div>';
+      }
+    });
+  </script>
+</body>
+</html>
