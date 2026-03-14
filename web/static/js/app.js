@@ -1,4 +1,5 @@
-const API_BASE = '/api/v1';
+const APP_BASE = window.APP_BASE || '';
+const API_BASE = APP_BASE + '/api/v1';
 
 const App = {
   token: localStorage.getItem('access_token'),
@@ -48,7 +49,7 @@ const App = {
         res = await fetch(API_BASE + path, opts);
       } else {
         this.clearAuth();
-        window.location.href = '/';
+        window.location.href = APP_BASE + '/';
         return null;
       }
     }
@@ -81,7 +82,7 @@ const App = {
 
   requireAuth() {
     if (!this.isLoggedIn()) {
-      window.location.href = '/';
+      window.location.href = APP_BASE + '/';
       return false;
     }
     return true;
@@ -92,7 +93,7 @@ const App = {
       await this.api('POST', '/auth/logout', { refresh_token: this.refreshToken });
     } catch (e) { /* ignore */ }
     this.clearAuth();
-    window.location.href = '/';
+    window.location.href = APP_BASE + '/';
   },
 
   showToast(message, type = 'success') {

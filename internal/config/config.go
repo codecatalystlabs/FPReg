@@ -2,15 +2,18 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
 
 type Config struct {
-	AppPort string
-	AppEnv  string
-	GinMode string
+	AppPort  string
+	AppEnv   string
+	GinMode  string
+	BasePath string
 
 	DBHost     string
 	DBPort     string
@@ -30,12 +33,20 @@ type Config struct {
 }
 
 func Load() *Config {
-	_ = godotenv.Load()
+	// Try .env in current dir, then next to the executable
+	if err := godotenv.Load(); err != nil {
+		if exe, e := os.Executable(); e == nil {
+			_ = godotenv.Load(filepath.Join(filepath.Dir(exe), ".env"))
+		}
+	}
+
+	basePath := strings.TrimRight(getEnv("BASE_PATH", ""), "/")
 
 	return &Config{
-		AppPort: getEnv("APP_PORT", "8080"),
-		AppEnv:  getEnv("APP_ENV", "development"),
-		GinMode: getEnv("GIN_MODE", "debug"),
+		AppPort:  getEnv("APP_PORT", "8080"),
+		AppEnv:   getEnv("APP_ENV", "development"),
+		GinMode:  getEnv("GIN_MODE", "debug"),
+		BasePath: basePath,
 
 		DBHost:     getEnv("DB_HOST", "localhost"),
 		DBPort:     getEnv("DB_PORT", "5432"),

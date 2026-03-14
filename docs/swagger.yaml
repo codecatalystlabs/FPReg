@@ -1,0 +1,754 @@
+definitions:
+  fpreg_internal_service.CreateFacilityInput:
+    properties:
+      client_code_prefix:
+        type: string
+      code:
+        type: string
+      district:
+        type: string
+      hsd:
+        type: string
+      level:
+        type: string
+      name:
+        type: string
+      subcounty:
+        type: string
+    type: object
+  fpreg_internal_service.CreateRegistrationInput:
+    properties:
+      age:
+        type: integer
+      breast_cancer_screening:
+        type: string
+      cervical_cancer_status:
+        type: string
+      cervical_cancer_treatment:
+        type: string
+      cervical_screening_method:
+        type: string
+      condoms_female_units:
+        type: integer
+      condoms_male_units:
+        type: integer
+      counseling_as_couple:
+        type: boolean
+      counseling_individual:
+        type: boolean
+      counseling_ms:
+        type: boolean
+      counseling_om:
+        type: boolean
+      counseling_se:
+        type: boolean
+      counseling_wd:
+        type: boolean
+      district:
+        type: string
+      fam_lam:
+        type: boolean
+      fam_standard_days:
+        type: boolean
+      fam_two_day:
+        type: boolean
+      given_name:
+        type: string
+      hts_code:
+        type: string
+      implant_3_years:
+        type: boolean
+      implant_5_years:
+        type: boolean
+      implant_removal_reason:
+        type: string
+      implant_removal_timing:
+        type: string
+      injectable_dmpa_im_doses:
+        type: integer
+      injectable_dmpa_sc_pa_doses:
+        type: integer
+      injectable_dmpa_sc_si_doses:
+        type: integer
+      is_new_user:
+        type: boolean
+      is_revisit:
+        type: boolean
+      is_switching:
+        type: boolean
+      is_visitor:
+        type: boolean
+      iud_copper_t:
+        type: boolean
+      iud_hormonal_3_years:
+        type: boolean
+      iud_hormonal_5_years:
+        type: boolean
+      iud_removal_reason:
+        type: string
+      iud_removal_timing:
+        type: string
+      nin:
+        type: string
+      parish:
+        type: string
+      phone_number:
+        type: string
+      pills_coc_cycles:
+        type: integer
+      pills_ecp_pieces:
+        type: integer
+      pills_pop_cycles:
+        type: integer
+      post_abortion_fp_timing:
+        type: string
+      postpartum_fp_timing:
+        type: string
+      previous_method:
+        type: string
+      referral_number:
+        type: string
+      referral_reason:
+        type: string
+      remarks:
+        type: string
+      screened_for_sti:
+        type: boolean
+      sex:
+        type: string
+      side_effects:
+        type: string
+      subcounty:
+        type: string
+      surname:
+        type: string
+      switching_reason:
+        type: string
+      tubal_ligation:
+        type: boolean
+      vasectomy:
+        type: boolean
+      village:
+        type: string
+      visit_date:
+        type: string
+    type: object
+  fpreg_internal_service.CreateUserInput:
+    properties:
+      email:
+        type: string
+      facility_id:
+        type: string
+      full_name:
+        type: string
+      password:
+        type: string
+      role:
+        type: string
+    type: object
+  fpreg_internal_utils.APIError:
+    properties:
+      errors:
+        items:
+          $ref: '#/definitions/fpreg_internal_utils.ErrorDetail'
+        type: array
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  fpreg_internal_utils.APIResponse:
+    properties:
+      data: {}
+      message:
+        type: string
+      meta:
+        $ref: '#/definitions/fpreg_internal_utils.Meta'
+      success:
+        type: boolean
+    type: object
+  fpreg_internal_utils.ErrorDetail:
+    properties:
+      field:
+        type: string
+      message:
+        type: string
+    type: object
+  fpreg_internal_utils.Meta:
+    properties:
+      page:
+        type: integer
+      per_page:
+        type: integer
+      total:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+  internal_handler.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  internal_handler.RefreshRequest:
+    properties:
+      refresh_token:
+        type: string
+    required:
+    - refresh_token
+    type: object
+info:
+  contact: {}
+paths:
+  /api/v1/audit-logs:
+    get:
+      parameters:
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Per page
+        in: query
+        name: per_page
+        type: integer
+      - description: Filter by user ID
+        in: query
+        name: user_id
+        type: string
+      - description: Filter by action
+        in: query
+        name: action
+        type: string
+      - description: Filter by entity
+        in: query
+        name: entity
+        type: string
+      - description: From date (YYYY-MM-DD)
+        in: query
+        name: date_from
+        type: string
+      - description: To date (YYYY-MM-DD)
+        in: query
+        name: date_to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List audit logs (admin only)
+      tags:
+      - audit
+  /api/v1/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user with email and password
+      parameters:
+      - description: Login credentials
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/fpreg_internal_utils.APIError'
+      summary: Log in
+      tags:
+      - auth
+  /api/v1/auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: Revoke the refresh token
+      parameters:
+      - description: Refresh token to revoke
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.RefreshRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+      summary: Log out
+      tags:
+      - auth
+  /api/v1/auth/me:
+    get:
+      description: Returns the currently authenticated user's profile
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get current user
+      tags:
+      - auth
+  /api/v1/auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Exchange a refresh token for a new access + refresh token pair
+      parameters:
+      - description: Refresh token
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.RefreshRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/fpreg_internal_utils.APIError'
+      summary: Refresh tokens
+      tags:
+      - auth
+  /api/v1/facilities:
+    get:
+      parameters:
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Per page
+        in: query
+        name: per_page
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List facilities
+      tags:
+      - facilities
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Facility data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/fpreg_internal_service.CreateFacilityInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a facility
+      tags:
+      - facilities
+  /api/v1/facilities/{id}:
+    delete:
+      parameters:
+      - description: Facility ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete facility
+      tags:
+      - facilities
+    get:
+      parameters:
+      - description: Facility ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get facility by ID
+      tags:
+      - facilities
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Facility ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Facility data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/fpreg_internal_service.CreateFacilityInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update facility
+      tags:
+      - facilities
+  /api/v1/option-sets:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List all option sets grouped by category
+      tags:
+      - option-sets
+  /api/v1/option-sets/{category}:
+    get:
+      parameters:
+      - description: Category name
+        in: path
+        name: category
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List option sets by category
+      tags:
+      - option-sets
+  /api/v1/option-sets/categories:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List all option set category names
+      tags:
+      - option-sets
+  /api/v1/registrations:
+    get:
+      parameters:
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Per page
+        in: query
+        name: per_page
+        type: integer
+      - description: Filter by visit date (YYYY-MM-DD)
+        in: query
+        name: visit_date
+        type: string
+      - description: Search by name, NIN, or client number
+        in: query
+        name: search
+        type: string
+      - description: Filter by sex (M/F)
+        in: query
+        name: sex
+        type: string
+      - description: From date
+        in: query
+        name: date_from
+        type: string
+      - description: To date
+        in: query
+        name: date_to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List FP register entries
+      tags:
+      - registrations
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Registration data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/fpreg_internal_service.CreateRegistrationInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/fpreg_internal_utils.APIError'
+      security:
+      - BearerAuth: []
+      summary: Create a new FP register entry
+      tags:
+      - registrations
+  /api/v1/registrations/{id}:
+    delete:
+      parameters:
+      - description: Registration ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Soft-delete an FP register entry
+      tags:
+      - registrations
+    get:
+      parameters:
+      - description: Registration ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get a single FP register entry
+      tags:
+      - registrations
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Registration ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Updated data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/fpreg_internal_service.CreateRegistrationInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update an FP register entry
+      tags:
+      - registrations
+  /api/v1/users:
+    get:
+      parameters:
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Per page
+        in: query
+        name: per_page
+        type: integer
+      - description: Filter by facility
+        in: query
+        name: facility_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List users
+      tags:
+      - users
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: User data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/fpreg_internal_service.CreateUserInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/fpreg_internal_utils.APIError'
+      security:
+      - BearerAuth: []
+      summary: Create a user
+      tags:
+      - users
+  /api/v1/users/{id}:
+    get:
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get user by ID
+      tags:
+      - users
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: User data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/fpreg_internal_service.CreateUserInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update user
+      tags:
+      - users
+  /api/v1/users/{id}/deactivate:
+    patch:
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Deactivate user
+      tags:
+      - users
+swagger: "2.0"

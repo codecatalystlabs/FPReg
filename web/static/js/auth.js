@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!form) return;
 
   if (App.isLoggedIn()) {
-    window.location.href = '/dashboard';
+    window.location.href = APP_BASE + '/dashboard';
     return;
   }
 
@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const data = await App.api('POST', '/auth/login', { email, password });
       App.setAuth(data.data.tokens, data.data.user);
-      window.location.href = '/dashboard';
+      window.location.href = APP_BASE + '/dashboard';
     } catch (err) {
       errorEl.textContent = err.message || 'Invalid credentials';
       errorEl.classList.remove('d-none');

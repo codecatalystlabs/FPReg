@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 
+	"fpreg/docs"
 	"fpreg/internal/config"
 	"fpreg/internal/database"
 	"fpreg/internal/handler"
@@ -15,15 +16,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// @title HMIS MCH 007 – Integrated FP Register API
-// @version 1.0
-// @host localhost:8080
-// @BasePath /api/v1
-// @securityDefinitions.apikey BearerAuth
-// @in header
-// @name Authorization
 func main() {
 	cfg := config.Load()
+
+	docs.SwaggerInfo.BasePath = cfg.BasePath + "/api/v1"
+	docs.SwaggerInfo.Host = ""
 
 	gin.SetMode(cfg.GinMode)
 
@@ -69,7 +66,7 @@ func main() {
 		OptionSet:    optionSetHandler,
 		Registration: registrationHandler,
 		Audit:        auditHandler,
-	}, authSvc, auditSvc)
+	}, authSvc, auditSvc, cfg)
 
 	port := cfg.AppPort
 	log.Printf("Starting HMIS FP Register server on :%s", port)

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 
+	"fpreg/internal/config"
 	"fpreg/internal/handler"
 	"fpreg/internal/middleware"
 	"fpreg/internal/models"
@@ -24,27 +25,32 @@ type Handlers struct {
 	Audit        *handler.AuditHandler
 }
 
-func Setup(r *gin.Engine, h Handlers, authSvc *service.AuthService, auditSvc *service.AuditService) {
-	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+func Setup(r *gin.Engine, h Handlers, authSvc *service.AuthService, auditSvc *service.AuditService, cfg *config.Config) {
+	base := r.Group(cfg.BasePath)
+
+	base.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler,
+		ginSwagger.URL(cfg.BasePath+"/swagger/doc.json"),
+	))
 
 	if _, err := os.Stat("web/templates"); err == nil {
-		r.Static("/static", "./web/static")
+		base.Static("/static", "./web/static")
 		r.LoadHTMLGlob("web/templates/*")
 
-		r.GET("/", func(c *gin.Context) { c.HTML(http.StatusOK, "login.html", nil) })
-		r.GET("/dashboard", func(c *gin.Context) { c.HTML(http.StatusOK, "dashboard.html", nil) })
-		r.GET("/register", func(c *gin.Context) { c.HTML(http.StatusOK, "register_form.html", nil) })
-		r.GET("/submissions", func(c *gin.Context) { c.HTML(http.StatusOK, "submissions.html", nil) })
-		r.GET("/submission/:id", func(c *gin.Context) { c.HTML(http.StatusOK, "submission_detail.html", nil) })
-		r.GET("/guide", func(c *gin.Context) { c.HTML(http.StatusOK, "guide.html", nil) })
-		r.GET("/admin/users", func(c *gin.Context) { c.HTML(http.StatusOK, "users.html", nil) })
-		r.GET("/admin/facilities", func(c *gin.Context) { c.HTML(http.StatusOK, "facilities.html", nil) })
-		r.GET("/admin/audit-logs", func(c *gin.Context) { c.HTML(http.StatusOK, "audit_logs.html", nil) })
+		tplData := gin.H{"BasePath": cfg.BasePath}
+		base.GET("/", func(c *gin.Context) { c.HTML(http.StatusOK, "login.html", tplData) })
+		base.GET("/dashboard", func(c *gin.Context) { c.HTML(http.StatusOK, "dashboard.html", tplData) })
+		base.GET("/register", func(c *gin.Context) { c.HTML(http.StatusOK, "register_form.html", tplData) })
+		base.GET("/submissions", func(c *gin.Context) { c.HTML(http.StatusOK, "submissions.html", tplData) })
+		base.GET("/submission/:id", func(c *gin.Context) { c.HTML(http.StatusOK, "submission_detail.html", tplData) })
+		base.GET("/guide", func(c *gin.Context) { c.HTML(http.StatusOK, "guide.html", tplData) })
+		base.GET("/admin/users", func(c *gin.Context) { c.HTML(http.StatusOK, "users.html", tplData) })
+		base.GET("/admin/facilities", func(c *gin.Context) { c.HTML(http.StatusOK, "facilities.html", tplData) })
+		base.GET("/admin/audit-logs", func(c *gin.Context) { c.HTML(http.StatusOK, "audit_logs.html", tplData) })
 	} else {
 		log.Println("Web templates not found, running in API-only mode")
 	}
 
-	api := r.Group("/api/v1")
+	api := base.Group("/api/v1")
 	api.Use(middleware.CORS())
 	api.Use(middleware.AuditLog(auditSvc))
 

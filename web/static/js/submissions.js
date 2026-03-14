@@ -73,7 +73,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <td>${r.hts_code || '–'}</td>
           <td>${r.phone_number || '–'}</td>
           <td>
-            <a href="/submission/${r.id}" class="btn btn-sm btn-outline-primary">
+            <a href="${APP_BASE}/submission/${r.id}" class="btn btn-sm btn-outline-primary">
               <i class="bi bi-eye"></i>
             </a>
           </td>
