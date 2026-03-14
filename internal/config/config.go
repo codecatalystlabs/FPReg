@@ -1,6 +1,7 @@
 package config
 
 import (
+	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -33,37 +34,54 @@ type Config struct {
 }
 
 func Load() *Config {
-	// Try .env in current dir, then next to the executable
 	if err := godotenv.Load(); err != nil {
 		if exe, e := os.Executable(); e == nil {
-			_ = godotenv.Load(filepath.Join(filepath.Dir(exe), ".env"))
+			if err2 := godotenv.Load(filepath.Join(filepath.Dir(exe), ".env")); err2 != nil {
+				log.Fatal("No .env file found. Copy .env.example to .env and fill in your values.")
+			}
+		} else {
+			log.Fatal("No .env file found. Copy .env.example to .env and fill in your values.")
 		}
 	}
 
-	basePath := strings.TrimRight(getEnv("BASE_PATH", ""), "/")
+	cfg := &Config{
+		AppPort:  os.Getenv("APP_PORT"),
+		AppEnv:   os.Getenv("APP_ENV"),
+		GinMode:  os.Getenv("GIN_MODE"),
+		BasePath: strings.TrimRight(os.Getenv("BASE_PATH"), "/"),
 
-	return &Config{
-		AppPort:  getEnv("APP_PORT", "8080"),
-		AppEnv:   getEnv("APP_ENV", "development"),
-		GinMode:  getEnv("GIN_MODE", "debug"),
-		BasePath: basePath,
+		DBHost:     os.Getenv("DB_HOST"),
+		DBPort:     os.Getenv("DB_PORT"),
+		DBUser:     os.Getenv("DB_USER"),
+		DBPassword: os.Getenv("DB_PASSWORD"),
+		DBName:     os.Getenv("DB_NAME"),
+		DBSSLMode:  os.Getenv("DB_SSLMODE"),
+		DBTimezone: os.Getenv("DB_TIMEZONE"),
 
-		DBHost:     getEnv("DB_HOST", "localhost"),
-		DBPort:     getEnv("DB_PORT", "5432"),
-		DBUser:     getEnv("DB_USER", "postgres"),
-		DBPassword: getEnv("DB_PASSWORD", ""),
-		DBName:     getEnv("DB_NAME", "fpreg"),
-		DBSSLMode:  getEnv("DB_SSLMODE", "disable"),
-		DBTimezone: getEnv("DB_TIMEZONE", "Africa/Kampala"),
+		JWTSecret:              os.Getenv("JWT_SECRET"),
+		JWTAccessExpiryMinutes: envInt("JWT_ACCESS_EXPIRY_MINUTES"),
+		JWTRefreshExpiryHours:  envInt("JWT_REFRESH_EXPIRY_HOURS"),
 
-		JWTSecret:              getEnv("JWT_SECRET", "default-dev-secret-change-me"),
-		JWTAccessExpiryMinutes: getEnvInt("JWT_ACCESS_EXPIRY_MINUTES", 30),
-		JWTRefreshExpiryHours:  getEnvInt("JWT_REFRESH_EXPIRY_HOURS", 168),
-
-		SeedAdminEmail:    getEnv("SEED_ADMIN_EMAIL", "admin@moh.go.ug"),
-		SeedAdminPassword: getEnv("SEED_ADMIN_PASSWORD", "ChangeMe@2026!"),
-		SeedAdminName:     getEnv("SEED_ADMIN_NAME", "System Administrator"),
+		SeedAdminEmail:    os.Getenv("SEED_ADMIN_EMAIL"),
+		SeedAdminPassword: os.Getenv("SEED_ADMIN_PASSWORD"),
+		SeedAdminName:     os.Getenv("SEED_ADMIN_NAME"),
 	}
+
+	required := map[string]string{
+		"APP_PORT":    cfg.AppPort,
+		"DB_HOST":     cfg.DBHost,
+		"DB_PORT":     cfg.DBPort,
+		"DB_USER":     cfg.DBUser,
+		"DB_NAME":     cfg.DBName,
+		"JWT_SECRET":  cfg.JWTSecret,
+	}
+	for key, val := range required {
+		if val == "" {
+			log.Fatalf("Required env var %s is missing or empty. Check your .env file.", key)
+		}
+	}
+
+	return cfg
 }
 
 func (c *Config) DSN() string {
@@ -76,18 +94,11 @@ func (c *Config) DSN() string {
 		" TimeZone=" + c.DBTimezone
 }
 
-func getEnv(key, fallback string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	return fallback
-}
-
-func getEnvInt(key string, fallback int) int {
+func envInt(key string) int {
 	if v := os.Getenv(key); v != "" {
 		if i, err := strconv.Atoi(v); err == nil {
 			return i
 		}
 	}
-	return fallback
+	return 0
 }
