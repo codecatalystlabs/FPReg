@@ -1,7 +1,9 @@
 package routes
 
 import (
+	"log"
 	"net/http"
+	"os"
 
 	"fpreg/internal/handler"
 	"fpreg/internal/middleware"
@@ -23,20 +25,24 @@ type Handlers struct {
 }
 
 func Setup(r *gin.Engine, h Handlers, authSvc *service.AuthService, auditSvc *service.AuditService) {
-	r.Static("/static", "./web/static")
-	r.LoadHTMLGlob("web/templates/*")
-
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-	r.GET("/", func(c *gin.Context) { c.HTML(http.StatusOK, "login.html", nil) })
-	r.GET("/dashboard", func(c *gin.Context) { c.HTML(http.StatusOK, "dashboard.html", nil) })
-	r.GET("/register", func(c *gin.Context) { c.HTML(http.StatusOK, "register_form.html", nil) })
-	r.GET("/submissions", func(c *gin.Context) { c.HTML(http.StatusOK, "submissions.html", nil) })
-	r.GET("/submission/:id", func(c *gin.Context) { c.HTML(http.StatusOK, "submission_detail.html", nil) })
-	r.GET("/guide", func(c *gin.Context) { c.HTML(http.StatusOK, "guide.html", nil) })
-	r.GET("/admin/users", func(c *gin.Context) { c.HTML(http.StatusOK, "users.html", nil) })
-	r.GET("/admin/facilities", func(c *gin.Context) { c.HTML(http.StatusOK, "facilities.html", nil) })
-	r.GET("/admin/audit-logs", func(c *gin.Context) { c.HTML(http.StatusOK, "audit_logs.html", nil) })
+	if _, err := os.Stat("web/templates"); err == nil {
+		r.Static("/static", "./web/static")
+		r.LoadHTMLGlob("web/templates/*")
+
+		r.GET("/", func(c *gin.Context) { c.HTML(http.StatusOK, "login.html", nil) })
+		r.GET("/dashboard", func(c *gin.Context) { c.HTML(http.StatusOK, "dashboard.html", nil) })
+		r.GET("/register", func(c *gin.Context) { c.HTML(http.StatusOK, "register_form.html", nil) })
+		r.GET("/submissions", func(c *gin.Context) { c.HTML(http.StatusOK, "submissions.html", nil) })
+		r.GET("/submission/:id", func(c *gin.Context) { c.HTML(http.StatusOK, "submission_detail.html", nil) })
+		r.GET("/guide", func(c *gin.Context) { c.HTML(http.StatusOK, "guide.html", nil) })
+		r.GET("/admin/users", func(c *gin.Context) { c.HTML(http.StatusOK, "users.html", nil) })
+		r.GET("/admin/facilities", func(c *gin.Context) { c.HTML(http.StatusOK, "facilities.html", nil) })
+		r.GET("/admin/audit-logs", func(c *gin.Context) { c.HTML(http.StatusOK, "audit_logs.html", nil) })
+	} else {
+		log.Println("Web templates not found, running in API-only mode")
+	}
 
 	api := r.Group("/api/v1")
 	api.Use(middleware.CORS())
