@@ -9,6 +9,8 @@ import (
 )
 
 func Migrate(db *gorm.DB) {
+	db.Exec(`CREATE EXTENSION IF NOT EXISTS "pgcrypto"`)
+
 	err := db.AutoMigrate(
 		&models.Facility{},
 		&models.User{},
