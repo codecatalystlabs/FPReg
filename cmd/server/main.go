@@ -19,8 +19,12 @@ import (
 func main() {
 	cfg := config.Load()
 
-	docs.SwaggerInfo.BasePath = cfg.BasePath + "/api/v1"
+	docs.SwaggerInfo.Title = "HMIS MCH 007 – Integrated FP Register API"
+	docs.SwaggerInfo.Version = "1.0"
+	docs.SwaggerInfo.Description = "Uganda MoH HMIS MCH 007 Integrated Family Planning Register"
+	docs.SwaggerInfo.BasePath = cfg.BasePath
 	docs.SwaggerInfo.Host = ""
+	docs.SwaggerInfo.Schemes = []string{"https", "http"}
 
 	gin.SetMode(cfg.GinMode)
 
