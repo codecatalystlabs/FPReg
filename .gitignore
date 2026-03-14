@@ -1,2 +1,4 @@
-/mobile
 *.env
+node_modules/
+mobile/.expo/
+mobile/assets/*.png
