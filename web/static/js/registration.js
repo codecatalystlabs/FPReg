@@ -156,26 +156,211 @@ function setupSkipLogic() {
     const tlGroup = document.getElementById('tubal_ligation_group');
     const cervicalGroup = document.getElementById('cervical_screening_section');
     const breastGroup = document.getElementById('breast_screening_section');
+    const postPregSection = document.getElementById('post_preg_section');
+    const larcSection = document.getElementById('larc_section');
+
+    const pillsGroup = document.getElementById('pills_group');
+    const condomsGroup = document.getElementById('condoms_group');
+    const injectablesGroup = document.getElementById('injectables_group');
+    const implantsGroup = document.getElementById('implants_group');
+    const iudsGroup = document.getElementById('iuds_group');
+    const permanentGroup = document.getElementById('permanent_group');
+    const famGroup = document.getElementById('fam_group');
 
     if (val === 'M') {
       vasGroup?.classList.remove('skip-hidden');
       tlGroup?.classList.add('skip-hidden');
       cervicalGroup?.classList.add('skip-hidden');
       breastGroup?.classList.add('skip-hidden');
+
+      // For males: only show condoms + vasectomy; hide all other method groups and female-only sections
+      pillsGroup?.classList.add('skip-hidden');
+      injectablesGroup?.classList.add('skip-hidden');
+      implantsGroup?.classList.add('skip-hidden');
+      iudsGroup?.classList.add('skip-hidden');
+      famGroup?.classList.add('skip-hidden');
+      postPregSection?.classList.add('skip-hidden');
+      larcSection?.classList.add('skip-hidden');
+
+      condomsGroup?.classList.remove('skip-hidden');
+      permanentGroup?.classList.remove('skip-hidden');
+
+      // Clear values for hidden female-only fields
+      ['pills_coc_cycles', 'pills_pop_cycles', 'pills_ecp_pieces',
+       'condoms_female_units',
+       'injectable_dmpa_im_doses', 'injectable_dmpa_sc_pa_doses', 'injectable_dmpa_sc_si_doses'
+      ].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '0';
+      });
+      ['implant_3_years', 'implant_5_years',
+       'iud_copper_t', 'iud_hormonal_3_years', 'iud_hormonal_5_years',
+       'fam_standard_days', 'fam_lam', 'fam_two_day'
+      ].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.checked = false;
+      });
+      ['postpartum_fp_timing', 'post_abortion_fp_timing',
+       'implant_removal_reason', 'implant_removal_timing',
+       'iud_removal_reason', 'iud_removal_timing'
+      ].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+      });
     } else if (val === 'F') {
       vasGroup?.classList.add('skip-hidden');
       tlGroup?.classList.remove('skip-hidden');
       cervicalGroup?.classList.remove('skip-hidden');
       breastGroup?.classList.remove('skip-hidden');
+      postPregSection?.classList.remove('skip-hidden');
+      larcSection?.classList.remove('skip-hidden');
+
+      pillsGroup?.classList.remove('skip-hidden');
+      condomsGroup?.classList.remove('skip-hidden');
+      injectablesGroup?.classList.remove('skip-hidden');
+      implantsGroup?.classList.remove('skip-hidden');
+      iudsGroup?.classList.remove('skip-hidden');
+      permanentGroup?.classList.remove('skip-hidden');
+      famGroup?.classList.remove('skip-hidden');
     } else {
       vasGroup?.classList.remove('skip-hidden');
       tlGroup?.classList.remove('skip-hidden');
       cervicalGroup?.classList.remove('skip-hidden');
       breastGroup?.classList.remove('skip-hidden');
+      postPregSection?.classList.remove('skip-hidden');
+      larcSection?.classList.remove('skip-hidden');
+
+      pillsGroup?.classList.remove('skip-hidden');
+      condomsGroup?.classList.remove('skip-hidden');
+      injectablesGroup?.classList.remove('skip-hidden');
+      implantsGroup?.classList.remove('skip-hidden');
+      iudsGroup?.classList.remove('skip-hidden');
+      permanentGroup?.classList.remove('skip-hidden');
+      famGroup?.classList.remove('skip-hidden');
+    }
+
+    if (typeof updateMethodGroups === 'function') {
+      updateMethodGroups();
     }
   }
   if (sex) sex.addEventListener('change', toggleSexFields);
   toggleSexFields();
+
+  // Contraceptive method skip logic: one method group at a time,
+  // and within injectables/implants/IUDs only one option.
+  const pillIds = ['pills_coc_cycles', 'pills_pop_cycles', 'pills_ecp_pieces'];
+  const condomIds = ['condoms_male_units', 'condoms_female_units'];
+  const injectableIds = ['injectable_dmpa_im_doses', 'injectable_dmpa_sc_pa_doses', 'injectable_dmpa_sc_si_doses'];
+  const implantIds = ['implant_3_years', 'implant_5_years'];
+  const iudIds = ['iud_copper_t', 'iud_hormonal_3_years', 'iud_hormonal_5_years'];
+  const permanentIds = ['tubal_ligation', 'vasectomy'];
+  const famIds = ['fam_standard_days', 'fam_lam', 'fam_two_day'];
+
+  function getInt(id) {
+    const el = document.getElementById(id);
+    if (!el) return 0;
+    const v = parseInt(el.value, 10);
+    return isNaN(v) ? 0 : v;
+  }
+  function getCheck(id) {
+    const el = document.getElementById(id);
+    return !!(el && el.checked);
+  }
+  function setDisabled(ids, disabled) {
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.disabled = disabled;
+      if (disabled) el.classList.add('bg-light');
+      else el.classList.remove('bg-light');
+    });
+  }
+
+  function updateMethodGroups() {
+    const pillsVal = pillIds.some(id => getInt(id) > 0);
+    const condomsVal = condomIds.some(id => getInt(id) > 0);
+    const injIm = getInt('injectable_dmpa_im_doses');
+    const injPa = getInt('injectable_dmpa_sc_pa_doses');
+    const injSi = getInt('injectable_dmpa_sc_si_doses');
+    const injectablesVal = injIm > 0 || injPa > 0 || injSi > 0;
+    const implantVal = implantIds.some(id => getCheck(id));
+    const iudVal = iudIds.some(id => getCheck(id));
+    const permanentVal = permanentIds.some(id => getCheck(id));
+    const famVal = famIds.some(id => getCheck(id));
+
+    const anyMethod = pillsVal || condomsVal || injectablesVal || implantVal || iudVal || permanentVal || famVal;
+
+    // One method group at a time
+    setDisabled(pillIds, anyMethod && !pillsVal);
+    setDisabled(condomIds, anyMethod && !condomsVal);
+    setDisabled(injectableIds, anyMethod && !injectablesVal);
+    setDisabled(implantIds, anyMethod && !implantVal);
+    setDisabled(iudIds, anyMethod && !iudVal);
+    setDisabled(permanentIds, anyMethod && !permanentVal);
+    setDisabled(famIds, anyMethod && !famVal);
+
+    // Within injectables: only one type may have a non-zero dose
+    if (injectablesVal) {
+      setDisabled(['injectable_dmpa_im_doses'], injectablesVal && injIm === 0);
+      setDisabled(['injectable_dmpa_sc_pa_doses'], injectablesVal && injPa === 0);
+      setDisabled(['injectable_dmpa_sc_si_doses'], injectablesVal && injSi === 0);
+    } else {
+      setDisabled(injectableIds, false);
+    }
+  }
+
+  // Implants, IUDs, permanent methods, FAM: allow only one checkbox per group
+  function enforceSingleCheckbox(ids, changedId) {
+    ids.forEach(id => {
+      if (id === changedId) return;
+      const el = document.getElementById(id);
+      if (el) el.checked = false;
+    });
+  }
+
+  injectableIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', updateMethodGroups);
+  });
+  pillIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', updateMethodGroups);
+  });
+  condomIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', updateMethodGroups);
+  });
+
+  implantIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('change', () => {
+      if (el.checked) enforceSingleCheckbox(implantIds, id);
+      updateMethodGroups();
+    });
+  });
+  iudIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('change', () => {
+      if (el.checked) enforceSingleCheckbox(iudIds, id);
+      updateMethodGroups();
+    });
+  });
+  permanentIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('change', () => {
+      if (el.checked) enforceSingleCheckbox(permanentIds, id);
+      updateMethodGroups();
+    });
+  });
+  famIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('change', () => {
+      if (el.checked) enforceSingleCheckbox(famIds, id);
+      updateMethodGroups();
+    });
+  });
+
+  updateMethodGroups();
 }
 
 function collectFormData() {

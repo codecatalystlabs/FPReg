@@ -219,130 +219,144 @@
           <div class="section-header"><i class="bi bi-capsule"></i> Contraceptives Dispensed <span class="badge bg-light text-dark">Columns 14–20</span></div>
           <div class="section-body">
             <!-- Oral Pills -->
-            <h6 class="fw-semibold text-primary mb-2" style="font-size:.85rem"><i class="bi bi-circle"></i> Oral Pills (Cycles Dispensed)</h6>
-            <div class="row g-3 mb-3">
-              <div class="col-md-3">
-                <label for="pills_coc_cycles" class="form-label">CoCs (Combined)</label>
-                <input type="number" class="form-control" id="pills_coc_cycles" min="0" value="0">
-              </div>
-              <div class="col-md-3">
-                <label for="pills_pop_cycles" class="form-label">POP (Progestogen)</label>
-                <input type="number" class="form-control" id="pills_pop_cycles" min="0" value="0">
-              </div>
-              <div class="col-md-3">
-                <label for="pills_ecp_pieces" class="form-label">ECP (Emergency)</label>
-                <input type="number" class="form-control" id="pills_ecp_pieces" min="0" value="0">
+            <div id="pills_group">
+              <h6 class="fw-semibold text-primary mb-2" style="font-size:.85rem"><i class="bi bi-circle"></i> Oral Pills (Cycles Dispensed)</h6>
+              <div class="row g-3 mb-3">
+                <div class="col-md-3">
+                  <label for="pills_coc_cycles" class="form-label">CoCs (Combined)</label>
+                  <input type="number" class="form-control" id="pills_coc_cycles" min="0" value="0">
+                </div>
+                <div class="col-md-3">
+                  <label for="pills_pop_cycles" class="form-label">POP (Progestogen)</label>
+                  <input type="number" class="form-control" id="pills_pop_cycles" min="0" value="0">
+                </div>
+                <div class="col-md-3">
+                  <label for="pills_ecp_pieces" class="form-label">ECP (Emergency)</label>
+                  <input type="number" class="form-control" id="pills_ecp_pieces" min="0" value="0">
+                </div>
               </div>
             </div>
 
             <!-- Condoms -->
-            <h6 class="fw-semibold text-primary mb-2" style="font-size:.85rem"><i class="bi bi-shield-check"></i> Condoms (Units)</h6>
-            <div class="row g-3 mb-3">
-              <div class="col-md-3">
-                <label for="condoms_male_units" class="form-label">Male Condoms</label>
-                <input type="number" class="form-control" id="condoms_male_units" min="0" value="0">
-              </div>
-              <div class="col-md-3">
-                <label for="condoms_female_units" class="form-label">Female Condoms</label>
-                <input type="number" class="form-control" id="condoms_female_units" min="0" value="0">
+            <div id="condoms_group">
+              <h6 class="fw-semibold text-primary mb-2" style="font-size:.85rem"><i class="bi bi-shield-check"></i> Condoms (Units)</h6>
+              <div class="row g-3 mb-3">
+                <div class="col-md-3">
+                  <label for="condoms_male_units" class="form-label">Male Condoms</label>
+                  <input type="number" class="form-control" id="condoms_male_units" min="0" value="0">
+                </div>
+                <div class="col-md-3">
+                  <label for="condoms_female_units" class="form-label">Female Condoms</label>
+                  <input type="number" class="form-control" id="condoms_female_units" min="0" value="0">
+                </div>
               </div>
             </div>
 
             <!-- Injectables -->
-            <h6 class="fw-semibold text-primary mb-2" style="font-size:.85rem"><i class="bi bi-droplet"></i> Injectables (Doses)</h6>
-            <div class="row g-3 mb-3">
-              <div class="col-md-3">
-                <label for="injectable_dmpa_im_doses" class="form-label">DMPA-IM (3 Mo)</label>
-                <input type="number" class="form-control" id="injectable_dmpa_im_doses" min="0" value="0">
-              </div>
-              <div class="col-md-3">
-                <label for="injectable_dmpa_sc_pa_doses" class="form-label">DMPA-SC PA</label>
-                <input type="number" class="form-control" id="injectable_dmpa_sc_pa_doses" min="0" value="0">
-                <div class="form-text">Provider Administered</div>
-              </div>
-              <div class="col-md-3">
-                <label for="injectable_dmpa_sc_si_doses" class="form-label">DMPA-SC SI</label>
-                <input type="number" class="form-control" id="injectable_dmpa_sc_si_doses" min="0" value="0">
-                <div class="form-text">Self-Injected</div>
+            <div id="injectables_group">
+              <h6 class="fw-semibold text-primary mb-2" style="font-size:.85rem"><i class="bi bi-droplet"></i> Injectables (Doses)</h6>
+              <div class="row g-3 mb-3">
+                <div class="col-md-3">
+                  <label for="injectable_dmpa_im_doses" class="form-label">DMPA-IM (3 Mo)</label>
+                  <input type="number" class="form-control" id="injectable_dmpa_im_doses" min="0" value="0">
+                </div>
+                <div class="col-md-3">
+                  <label for="injectable_dmpa_sc_pa_doses" class="form-label">DMPA-SC PA</label>
+                  <input type="number" class="form-control" id="injectable_dmpa_sc_pa_doses" min="0" value="0">
+                  <div class="form-text">Provider Administered</div>
+                </div>
+                <div class="col-md-3">
+                  <label for="injectable_dmpa_sc_si_doses" class="form-label">DMPA-SC SI</label>
+                  <input type="number" class="form-control" id="injectable_dmpa_sc_si_doses" min="0" value="0">
+                  <div class="form-text">Self-Injected</div>
+                </div>
               </div>
             </div>
 
             <!-- Implants -->
-            <h6 class="fw-semibold text-primary mb-2" style="font-size:.85rem"><i class="bi bi-bandaid"></i> Implants</h6>
-            <div class="row g-3 mb-3">
-              <div class="col-md-3">
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" id="implant_3_years">
-                  <label class="form-check-label" for="implant_3_years">3 Years</label>
+            <div id="implants_group">
+              <h6 class="fw-semibold text-primary mb-2" style="font-size:.85rem"><i class="bi bi-bandaid"></i> Implants</h6>
+              <div class="row g-3 mb-3">
+                <div class="col-md-3">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="implant_3_years">
+                    <label class="form-check-label" for="implant_3_years">3 Years</label>
+                  </div>
                 </div>
-              </div>
-              <div class="col-md-3">
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" id="implant_5_years">
-                  <label class="form-check-label" for="implant_5_years">5 Years</label>
+                <div class="col-md-3">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="implant_5_years">
+                    <label class="form-check-label" for="implant_5_years">5 Years</label>
+                  </div>
                 </div>
               </div>
             </div>
 
             <!-- IUDs -->
-            <h6 class="fw-semibold text-primary mb-2" style="font-size:.85rem"><i class="bi bi-pentagon"></i> Intra-Uterine Devices (IUDs)</h6>
-            <div class="row g-3 mb-3">
-              <div class="col-md-3">
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" id="iud_copper_t">
-                  <label class="form-check-label" for="iud_copper_t">Copper-T</label>
+            <div id="iuds_group">
+              <h6 class="fw-semibold text-primary mb-2" style="font-size:.85rem"><i class="bi bi-pentagon"></i> Intra-Uterine Devices (IUDs)</h6>
+              <div class="row g-3 mb-3">
+                <div class="col-md-3">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="iud_copper_t">
+                    <label class="form-check-label" for="iud_copper_t">Copper-T</label>
+                  </div>
                 </div>
-              </div>
-              <div class="col-md-3">
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" id="iud_hormonal_3_years">
-                  <label class="form-check-label" for="iud_hormonal_3_years">Hormonal (3 Yr)</label>
+                <div class="col-md-3">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="iud_hormonal_3_years">
+                    <label class="form-check-label" for="iud_hormonal_3_years">Hormonal (3 Yr)</label>
+                  </div>
                 </div>
-              </div>
-              <div class="col-md-3">
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" id="iud_hormonal_5_years">
-                  <label class="form-check-label" for="iud_hormonal_5_years">Hormonal (5 Yr)</label>
+                <div class="col-md-3">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="iud_hormonal_5_years">
+                    <label class="form-check-label" for="iud_hormonal_5_years">Hormonal (5 Yr)</label>
+                  </div>
                 </div>
               </div>
             </div>
 
             <!-- Sterilization -->
-            <h6 class="fw-semibold text-primary mb-2" style="font-size:.85rem"><i class="bi bi-lock"></i> Permanent Methods</h6>
-            <div class="row g-3 mb-3">
-              <div class="col-md-3" id="tubal_ligation_group">
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" id="tubal_ligation">
-                  <label class="form-check-label" for="tubal_ligation">Tubal Ligation</label>
+            <div id="permanent_group">
+              <h6 class="fw-semibold text-primary mb-2" style="font-size:.85rem"><i class="bi bi-lock"></i> Permanent Methods</h6>
+              <div class="row g-3 mb-3">
+                <div class="col-md-3" id="tubal_ligation_group">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="tubal_ligation">
+                    <label class="form-check-label" for="tubal_ligation">Tubal Ligation</label>
+                  </div>
                 </div>
-              </div>
-              <div class="col-md-3" id="vasectomy_group">
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" id="vasectomy">
-                  <label class="form-check-label" for="vasectomy">Vasectomy</label>
+                <div class="col-md-3" id="vasectomy_group">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="vasectomy">
+                    <label class="form-check-label" for="vasectomy">Vasectomy</label>
+                  </div>
                 </div>
               </div>
             </div>
 
             <!-- FAM -->
-            <h6 class="fw-semibold text-primary mb-2" style="font-size:.85rem"><i class="bi bi-calendar-heart"></i> Fertility Awareness Methods</h6>
-            <div class="row g-3">
-              <div class="col-md-3">
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" id="fam_standard_days">
-                  <label class="form-check-label" for="fam_standard_days">Standard Days</label>
+            <div id="fam_group">
+              <h6 class="fw-semibold text-primary mb-2" style="font-size:.85rem"><i class="bi bi-calendar-heart"></i> Fertility Awareness Methods</h6>
+              <div class="row g-3">
+                <div class="col-md-3">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="fam_standard_days">
+                    <label class="form-check-label" for="fam_standard_days">Standard Days</label>
+                  </div>
                 </div>
-              </div>
-              <div class="col-md-3">
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" id="fam_lam">
-                  <label class="form-check-label" for="fam_lam">LAM</label>
+                <div class="col-md-3">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="fam_lam">
+                    <label class="form-check-label" for="fam_lam">LAM</label>
+                  </div>
                 </div>
-              </div>
-              <div class="col-md-3">
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" id="fam_two_day">
-                  <label class="form-check-label" for="fam_two_day">Two Day Method</label>
+                <div class="col-md-3">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="fam_two_day">
+                    <label class="form-check-label" for="fam_two_day">Two Day Method</label>
+                  </div>
                 </div>
               </div>
             </div>
@@ -350,7 +364,7 @@
         </div>
 
         <!-- Section 6: Post-Pregnancy FP (Col 21) -->
-        <div class="form-section">
+        <div class="form-section" id="post_preg_section">
           <div class="section-header"><i class="bi bi-heart"></i> Post-Pregnancy Family Planning <span class="badge bg-light text-dark">Column 21</span></div>
           <div class="section-body">
             <div class="row g-3">
@@ -371,7 +385,7 @@
         </div>
 
         <!-- Section 7: LARC Removal (Col 22) -->
-        <div class="form-section">
+        <div class="form-section" id="larc_section">
           <div class="section-header"><i class="bi bi-arrow-repeat"></i> LARC Removal <span class="badge bg-light text-dark">Column 22</span></div>
           <div class="section-body">
             <div class="row g-3">
