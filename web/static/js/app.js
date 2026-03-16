@@ -28,6 +28,35 @@ const App = {
     localStorage.removeItem('user');
   },
 
+  async apiForm(method, path, formData) {
+    const opts = { method, body: formData, headers: {} };
+    if (this.token) {
+      opts.headers['Authorization'] = 'Bearer ' + this.token;
+    }
+
+    let res = await fetch(API_BASE + path, opts);
+
+    if (res.status === 401 && this.refreshToken) {
+      const refreshed = await this.tryRefresh();
+      if (refreshed) {
+        if (this.token) {
+          opts.headers['Authorization'] = 'Bearer ' + this.token;
+        }
+        res = await fetch(API_BASE + path, opts);
+      } else {
+        this.clearAuth();
+        window.location.href = APP_BASE + '/';
+        return null;
+      }
+    }
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw { status: res.status, ...data };
+    }
+    return data;
+  },
+
   async api(method, path, body = null) {
     const opts = {
       method,

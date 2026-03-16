@@ -13,6 +13,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { AppInput } from '../components/AppInput';
 import { AppSelect } from '../components/AppSelect';
 import { AppCheckbox } from '../components/AppCheckbox';
+import { AppRadioGroup } from '../components/AppRadioGroup';
 import { AppButton } from '../components/AppButton';
 import { SectionHeader } from '../components/SectionHeader';
 import { LoadingState } from '../components/LoadingState';
@@ -28,7 +29,13 @@ import { AxiosError } from 'axios';
 type RouteP = RouteProp<MainStackParamList, 'EditRegistration'>;
 
 function toOptions(items: OptionSetItem[]) {
-  return items.map((i) => ({ value: i.code, label: `${i.code} – ${i.label}` }));
+  if (!Array.isArray(items)) return [];
+  return items
+    .filter((i) => i != null && (i.code != null && i.code !== ''))
+    .map((i) => ({
+      value: String(i.code),
+      label: `${i.code} – ${i.label ?? i.code}`,
+    }));
 }
 
 function regToInput(reg: FPRegistration): RegistrationInput {
@@ -196,12 +203,27 @@ function EditForm({
 
         <SectionHeader title="Counseling" icon="chatbubbles" />
         <View style={styles.section}>
-          <Controller control={control} name="counseling_individual" render={({ field }) => (
-            <AppCheckbox label="Individual" value={field.value} onChange={field.onChange} />
-          )} />
-          <Controller control={control} name="counseling_as_couple" render={({ field }) => (
-            <AppCheckbox label="As Couple" value={field.value} onChange={field.onChange} />
-          )} />
+          <Controller
+            control={control}
+            name="counseling_individual"
+            render={({ field: ind }) => (
+              <Controller
+                control={control}
+                name="counseling_as_couple"
+                render={({ field: cou }) => (
+                  <AppRadioGroup
+                    label="Counseled"
+                    options={[{ value: 'individual', label: 'Individual' }, { value: 'couple', label: 'As Couple' }]}
+                    value={ind.value ? 'individual' : cou.value ? 'couple' : ''}
+                    onChange={(v) => {
+                      ind.onChange(v === 'individual');
+                      cou.onChange(v === 'couple');
+                    }}
+                  />
+                )}
+              />
+            )}
+          />
           <Controller control={control} name="is_switching" render={({ field }) => (
             <AppCheckbox label="Switching" value={field.value} onChange={field.onChange} />
           )} />

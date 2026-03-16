@@ -7,18 +7,20 @@ interface Props extends TextInputProps {
   error?: string;
   helpText?: string;
   required?: boolean;
+  disabled?: boolean;
 }
 
-export function AppInput({ label, error, helpText, required, style, ...props }: Props) {
+export function AppInput({ label, error, helpText, required, disabled, style, editable, ...props }: Props) {
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, disabled && styles.containerDisabled]}>
       <Text style={styles.label}>
         {label}
         {required && <Text style={styles.required}> *</Text>}
       </Text>
       <TextInput
-        style={[styles.input, error && styles.inputError, style]}
+        style={[styles.input, error && styles.inputError, disabled && styles.inputDisabled, style]}
         placeholderTextColor={colors.textMuted}
+        editable={editable ?? !disabled}
         {...props}
       />
       {error ? (
@@ -32,6 +34,7 @@ export function AppInput({ label, error, helpText, required, style, ...props }: 
 
 const styles = StyleSheet.create({
   container: { marginBottom: spacing.md },
+  containerDisabled: { opacity: 0.7 },
   label: { ...typography.label, color: colors.textSecondary, marginBottom: spacing.xs },
   required: { color: colors.danger },
   input: {
@@ -45,6 +48,7 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   inputError: { borderColor: colors.danger },
+  inputDisabled: { backgroundColor: colors.divider },
   error: { ...typography.caption, color: colors.danger, marginTop: spacing.xs },
   help: { ...typography.caption, color: colors.textMuted, marginTop: spacing.xs },
 });

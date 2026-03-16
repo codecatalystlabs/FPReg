@@ -73,9 +73,12 @@ export function AppSelect({
               <Text style={styles.clearText}>{placeholder}</Text>
             </TouchableOpacity>
 
+            <View style={styles.optionListWrap}>
             <FlatList
               data={options}
-              keyExtractor={(item) => item.value}
+              keyExtractor={(item, index) => `${item.value ?? ''}-${index}`}
+              style={styles.optionList}
+              contentContainerStyle={styles.optionListContent}
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={[styles.option, item.value === value && styles.optionActive]}
@@ -90,6 +93,7 @@ export function AppSelect({
                 </TouchableOpacity>
               )}
             />
+            </View>
           </SafeAreaView>
         </View>
       </Modal>
@@ -118,11 +122,14 @@ const styles = StyleSheet.create({
   error: { ...typography.caption, color: colors.danger, marginTop: spacing.xs },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   modal: {
+    height: '85%',
     backgroundColor: colors.surface,
     borderTopLeftRadius: radii.xl,
     borderTopRightRadius: radii.xl,
-    maxHeight: '70%',
   },
+  optionListWrap: { flex: 1, minHeight: 0 },
+  optionList: { flex: 1 },
+  optionListContent: { paddingBottom: spacing.xl },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',

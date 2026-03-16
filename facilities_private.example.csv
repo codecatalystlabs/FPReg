@@ -1,0 +1,3 @@
+uid,name,code,level,subcounty,hsd,district,client_code_prefix
+FAC-001,Example HC III,EX001,HC III,Example Subcounty,Example HSD,Example District,EX
+FAC-002,Another Health Centre,EX002,HC II,North Subcounty,HSD B,Central District,AN

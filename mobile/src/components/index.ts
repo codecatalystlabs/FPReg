@@ -2,6 +2,7 @@ export { AppButton } from './AppButton';
 export { AppInput } from './AppInput';
 export { AppSelect } from './AppSelect';
 export { AppCheckbox } from './AppCheckbox';
+export { AppRadioGroup } from './AppRadioGroup';
 export { AppCard } from './AppCard';
 export { SectionHeader } from './SectionHeader';
 export { StatusBadge } from './StatusBadge';

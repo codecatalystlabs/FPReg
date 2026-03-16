@@ -14,6 +14,13 @@ const docTemplate = `{
     },
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
+    "securityDefinitions": {
+        "BearerAuth": {
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
+    },
     "paths": {
         "/api/v1/audit-logs": {
             "get": {
@@ -172,6 +179,44 @@ const docTemplate = `{
                     "auth"
                 ],
                 "summary": "Get current user",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/fpreg_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/change-password": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Change own password",
+                "parameters": [
+                    {
+                        "description": "Password change payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.ChangePasswordRequest"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -851,6 +896,42 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/fpreg_internal_service.CreateUserInput"
                         }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/fpreg_internal_utils.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/users/import": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Bulk import users from CSV",
+                "parameters": [
+                    {
+                        "description": "CSV file with columns: full_name,email,password,role,facility_id",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true,
+                        "type": "file"
                     }
                 ],
                 "responses": {

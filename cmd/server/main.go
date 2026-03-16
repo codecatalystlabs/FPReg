@@ -36,6 +36,15 @@ func main() {
 	database.Migrate(db)
 	database.Seed(db, cfg.SeedAdminEmail, cfg.SeedAdminPassword, cfg.SeedAdminName)
 
+	// Optionally seed facilities from CSV into the database (one-time or idempotent).
+	if path := os.Getenv("FACILITIES_FILE"); path != "" {
+		if n, err := database.LoadFacilitiesFromFile(db, path); err != nil {
+			log.Printf("Failed to load facilities from %s: %v", path, err)
+		} else if n > 0 {
+			log.Printf("Loaded/updated %d facilities from %s", n, path)
+		}
+	}
+
 	// Repositories
 	userRepo := repository.NewUserRepository(db)
 	facilityRepo := repository.NewFacilityRepository(db)

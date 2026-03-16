@@ -15,6 +15,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { AppInput } from '../components/AppInput';
 import { AppSelect } from '../components/AppSelect';
 import { AppCheckbox } from '../components/AppCheckbox';
+import { AppRadioGroup } from '../components/AppRadioGroup';
 import { AppButton } from '../components/AppButton';
 import { SectionHeader } from '../components/SectionHeader';
 import { useOptionSetStore } from '../store/optionSetStore';
@@ -33,9 +34,18 @@ const schema = z.object({
   age: z.number().min(0).max(120, 'Age must be 0–120'),
   is_new_user: z.boolean(),
   is_revisit: z.boolean(),
+  previous_method: z.string().optional(),
+  is_switching: z.boolean().optional(),
+  switching_reason: z.string().optional(),
 }).refine((d) => d.is_new_user !== d.is_revisit, {
   message: 'Must be either new user or revisit',
   path: ['is_new_user'],
+}).refine((d) => !d.is_revisit || (d.previous_method != null && d.previous_method.trim().length > 0), {
+  message: 'Previous method is required for revisit',
+  path: ['previous_method'],
+}).refine((d) => !d.is_switching || (d.switching_reason != null && d.switching_reason.trim().length > 0), {
+  message: 'Reason for switching is required when switching method',
+  path: ['switching_reason'],
 });
 
 type FormData = z.infer<typeof schema>;
@@ -63,7 +73,13 @@ const defaultValues: RegistrationInput = {
 };
 
 function toOptions(items: OptionSetItem[]) {
-  return items.map((i) => ({ value: i.code, label: `${i.code} – ${i.label}` }));
+  if (!Array.isArray(items)) return [];
+  return items
+    .filter((i) => i != null && (i.code != null && i.code !== ''))
+    .map((i, idx) => ({
+      value: String(i.code),
+      label: `${i.code} – ${i.label ?? i.code}`,
+    }));
 }
 
 export function NewRegistrationScreen() {
@@ -88,6 +104,58 @@ export function NewRegistrationScreen() {
   const watchImplRemoval = watch('implant_removal_reason');
   const watchIudRemoval = watch('iud_removal_reason');
 
+  const pillsCoc = watch('pills_coc_cycles');
+  const pillsPop = watch('pills_pop_cycles');
+  const pillsEcp = watch('pills_ecp_pieces');
+  const condomsM = watch('condoms_male_units');
+  const condomsF = watch('condoms_female_units');
+  const injIm = watch('injectable_dmpa_im_doses');
+  const injPa = watch('injectable_dmpa_sc_pa_doses');
+  const injSi = watch('injectable_dmpa_sc_si_doses');
+  const impl3 = watch('implant_3_years');
+  const impl5 = watch('implant_5_years');
+  const iudCu = watch('iud_copper_t');
+  const iudH3 = watch('iud_hormonal_3_years');
+  const iudH5 = watch('iud_hormonal_5_years');
+  const tubal = watch('tubal_ligation');
+  const vasec = watch('vasectomy');
+  const famSd = watch('fam_standard_days');
+  const famLam = watch('fam_lam');
+  const famTwo = watch('fam_two_day');
+
+  const hasPills = (pillsCoc || 0) > 0 || (pillsPop || 0) > 0 || (pillsEcp || 0) > 0;
+  const hasCondoms = (condomsM || 0) > 0 || (condomsF || 0) > 0;
+  const hasInjectables = (injIm || 0) > 0 || (injPa || 0) > 0 || (injSi || 0) > 0;
+  const hasImplant = !!(impl3 || impl5);
+  const hasIud = !!(iudCu || iudH3 || iudH5);
+  const hasPermanent = !!(tubal || vasec);
+  const hasFam = !!(famSd || famLam || famTwo);
+  const anyMethod = hasPills || hasCondoms || hasInjectables || hasImplant || hasIud || hasPermanent || hasFam;
+
+  const methodDisabled = {
+    pills: anyMethod && !hasPills,
+    condoms: anyMethod && !hasCondoms,
+    injectables: anyMethod && !hasInjectables,
+    implant: anyMethod && !hasImplant,
+    iud: anyMethod && !hasIud,
+    permanent: anyMethod && !hasPermanent,
+    fam: anyMethod && !hasFam,
+  };
+  const injectableDisabled = {
+    im: hasInjectables && (injIm || 0) === 0,
+    pa: hasInjectables && (injPa || 0) === 0,
+    si: hasInjectables && (injSi || 0) === 0,
+  };
+  const implantDisabled = {
+    three: hasImplant && !impl3,
+    five: hasImplant && !impl5,
+  };
+  const iudDisabled = {
+    copper: hasIud && !iudCu,
+    h3: hasIud && !iudH3,
+    h5: hasIud && !iudH5,
+  };
+
   const opts = useMemo(() => ({
     hts: toOptions(sets.hts_code || []),
     fpMethod: toOptions(sets.fp_method || []),
@@ -100,7 +168,7 @@ export function NewRegistrationScreen() {
     cervStatus: toOptions(sets.cervical_cancer_status || []),
     cervTreat: toOptions(sets.cervical_cancer_treatment || []),
     breastScreen: toOptions(sets.breast_cancer_screening || []),
-    sideEffects: sets.side_effect || [],
+    sideEffects: (sets.side_effect ?? sets.side_effects ?? []) as OptionSetItem[],
   }), [sets]);
 
   const onSubmit = async (data: RegistrationInput) => {
@@ -192,18 +260,33 @@ export function NewRegistrationScreen() {
         {/* Counseling */}
         <SectionHeader title="FP Counseling" icon="chatbubbles" subtitle="Columns 12–13" />
         <View style={styles.section}>
-          <Controller control={control} name="counseling_individual" render={({ field }) => (
-            <AppCheckbox label="Individually" value={field.value} onChange={field.onChange} />
-          )} />
-          <Controller control={control} name="counseling_as_couple" render={({ field }) => (
-            <AppCheckbox label="As Couple" value={field.value} onChange={field.onChange} />
-          )} />
-          <Text style={styles.subLabel}>Topics Counseled</Text>
+          <Controller
+            control={control}
+            name="counseling_individual"
+            render={({ field: ind }) => (
+              <Controller
+                control={control}
+                name="counseling_as_couple"
+                render={({ field: cou }) => (
+                  <AppRadioGroup
+                    label="Counseled"
+                    options={[{ value: 'individual', label: 'Individually' }, { value: 'couple', label: 'As Couple' }]}
+                    value={ind.value ? 'individual' : cou.value ? 'couple' : ''}
+                    onChange={(v) => {
+                      ind.onChange(v === 'individual');
+                      cou.onChange(v === 'couple');
+                    }}
+                  />
+                )}
+              />
+            )}
+          />
+          <Text style={styles.subLabel}>Topic counseled (select all that apply)</Text>
           <View style={styles.checkRow}>
-            <Controller control={control} name="counseling_om" render={({ field }) => (<AppCheckbox label="OM" value={field.value} onChange={field.onChange} />)} />
-            <Controller control={control} name="counseling_se" render={({ field }) => (<AppCheckbox label="SE" value={field.value} onChange={field.onChange} />)} />
-            <Controller control={control} name="counseling_wd" render={({ field }) => (<AppCheckbox label="WD" value={field.value} onChange={field.onChange} />)} />
-            <Controller control={control} name="counseling_ms" render={({ field }) => (<AppCheckbox label="MS" value={field.value} onChange={field.onChange} />)} />
+            <Controller control={control} name="counseling_om" render={({ field }) => (<AppCheckbox label="OM" value={field.value} onChange={field.onChange} compact />)} />
+            <Controller control={control} name="counseling_se" render={({ field }) => (<AppCheckbox label="SE" value={field.value} onChange={field.onChange} compact />)} />
+            <Controller control={control} name="counseling_wd" render={({ field }) => (<AppCheckbox label="WD" value={field.value} onChange={field.onChange} compact />)} />
+            <Controller control={control} name="counseling_ms" render={({ field }) => (<AppCheckbox label="MS" value={field.value} onChange={field.onChange} compact />)} />
           </View>
           <Controller control={control} name="is_switching" render={({ field }) => (
             <AppCheckbox label="Switching Method" value={field.value} onChange={field.onChange} />
@@ -218,73 +301,101 @@ export function NewRegistrationScreen() {
         {/* Contraceptives */}
         <SectionHeader title="Contraceptives" icon="medkit" subtitle="Columns 14–20" />
         <View style={styles.section}>
-          <Text style={styles.subLabel}>Oral Pills (Cycles)</Text>
-          <Controller control={control} name="pills_coc_cycles" render={({ field }) => (
-            <AppInput label="CoCs" value={String(field.value)} onChangeText={(v) => field.onChange(parseInt(v) || 0)} keyboardType="number-pad" />
-          )} />
-          <Controller control={control} name="pills_pop_cycles" render={({ field }) => (
-            <AppInput label="POP" value={String(field.value)} onChangeText={(v) => field.onChange(parseInt(v) || 0)} keyboardType="number-pad" />
-          )} />
-          <Controller control={control} name="pills_ecp_pieces" render={({ field }) => (
-            <AppInput label="ECP (pieces)" value={String(field.value)} onChangeText={(v) => field.onChange(parseInt(v) || 0)} keyboardType="number-pad" />
-          )} />
-          <Text style={styles.subLabel}>Condoms (Units)</Text>
+          {watchSex !== 'M' && (
+            <>
+              <Text style={styles.subLabel}>Oral Pills (Cycles)</Text>
+              <Controller control={control} name="pills_coc_cycles" render={({ field }) => (
+                <AppInput label="CoCs" value={String(field.value)} onChangeText={(v) => field.onChange(parseInt(v) || 0)} keyboardType="number-pad" disabled={methodDisabled.pills} />
+              )} />
+              <Controller control={control} name="pills_pop_cycles" render={({ field }) => (
+                <AppInput label="POP" value={String(field.value)} onChangeText={(v) => field.onChange(parseInt(v) || 0)} keyboardType="number-pad" disabled={methodDisabled.pills} />
+              )} />
+              <Controller control={control} name="pills_ecp_pieces" render={({ field }) => (
+                <AppInput label="ECP" value={String(field.value)} onChangeText={(v) => field.onChange(parseInt(v) || 0)} keyboardType="number-pad" disabled={methodDisabled.pills} />
+              )} />
+            </>
+          )}
+          <Text style={styles.subLabel}>Condoms (Pieces)</Text>
           <Controller control={control} name="condoms_male_units" render={({ field }) => (
-            <AppInput label="Male" value={String(field.value)} onChangeText={(v) => field.onChange(parseInt(v) || 0)} keyboardType="number-pad" />
+            <AppInput label="Male" value={String(field.value)} onChangeText={(v) => field.onChange(parseInt(v) || 0)} keyboardType="number-pad" disabled={methodDisabled.condoms} />
           )} />
-          <Controller control={control} name="condoms_female_units" render={({ field }) => (
-            <AppInput label="Female" value={String(field.value)} onChangeText={(v) => field.onChange(parseInt(v) || 0)} keyboardType="number-pad" />
-          )} />
-          <Text style={styles.subLabel}>Injectables (Doses)</Text>
-          <Controller control={control} name="injectable_dmpa_im_doses" render={({ field }) => (
-            <AppInput label="DMPA-IM" value={String(field.value)} onChangeText={(v) => field.onChange(parseInt(v) || 0)} keyboardType="number-pad" />
-          )} />
-          <Controller control={control} name="injectable_dmpa_sc_pa_doses" render={({ field }) => (
-            <AppInput label="DMPA-SC PA" value={String(field.value)} onChangeText={(v) => field.onChange(parseInt(v) || 0)} keyboardType="number-pad" helpText="Provider Administered" />
-          )} />
-          <Controller control={control} name="injectable_dmpa_sc_si_doses" render={({ field }) => (
-            <AppInput label="DMPA-SC SI" value={String(field.value)} onChangeText={(v) => field.onChange(parseInt(v) || 0)} keyboardType="number-pad" helpText="Self-Injected" />
-          )} />
-          <Text style={styles.subLabel}>Implants & IUDs</Text>
-          <Controller control={control} name="implant_3_years" render={({ field }) => (<AppCheckbox label="Implant 3 Years" value={field.value} onChange={field.onChange} />)} />
-          <Controller control={control} name="implant_5_years" render={({ field }) => (<AppCheckbox label="Implant 5 Years" value={field.value} onChange={field.onChange} />)} />
-          <Controller control={control} name="iud_copper_t" render={({ field }) => (<AppCheckbox label="IUD Copper-T" value={field.value} onChange={field.onChange} />)} />
-          <Controller control={control} name="iud_hormonal_3_years" render={({ field }) => (<AppCheckbox label="IUD Hormonal 3 Yr" value={field.value} onChange={field.onChange} />)} />
-          <Controller control={control} name="iud_hormonal_5_years" render={({ field }) => (<AppCheckbox label="IUD Hormonal 5 Yr" value={field.value} onChange={field.onChange} />)} />
+          {watchSex !== 'M' && (
+            <Controller control={control} name="condoms_female_units" render={({ field }) => (
+              <AppInput label="Female" value={String(field.value)} onChangeText={(v) => field.onChange(parseInt(v) || 0)} keyboardType="number-pad" disabled={methodDisabled.condoms} />
+            )} />
+          )}
+          {watchSex !== 'M' && (
+            <>
+              <Text style={styles.subLabel}>Injectables (Doses) – select one only</Text>
+              <Controller control={control} name="injectable_dmpa_im_doses" render={({ field }) => (
+                <AppInput label="DMPA-IM" value={String(field.value)} onChangeText={(v) => field.onChange(parseInt(v) || 0)} keyboardType="number-pad" disabled={methodDisabled.injectables || injectableDisabled.im} />
+              )} />
+              <Controller control={control} name="injectable_dmpa_sc_pa_doses" render={({ field }) => (
+                <AppInput label="DMPA-SC PA" value={String(field.value)} onChangeText={(v) => field.onChange(parseInt(v) || 0)} keyboardType="number-pad" helpText="Provider Administered" disabled={methodDisabled.injectables || injectableDisabled.pa} />
+              )} />
+              <Controller control={control} name="injectable_dmpa_sc_si_doses" render={({ field }) => (
+                <AppInput label="DMPA-SC SI" value={String(field.value)} onChangeText={(v) => field.onChange(parseInt(v) || 0)} keyboardType="number-pad" helpText="Self-Injected" disabled={methodDisabled.injectables || injectableDisabled.si} />
+              )} />
+              <Text style={styles.subLabel}>Implants – select one only</Text>
+              <Controller control={control} name="implant_3_years" render={({ field }) => (<AppCheckbox label="Implant 3 Years" value={field.value} onChange={field.onChange} disabled={methodDisabled.implant || implantDisabled.three} />)} />
+              <Controller control={control} name="implant_5_years" render={({ field }) => (<AppCheckbox label="Implant 5 Years" value={field.value} onChange={field.onChange} disabled={methodDisabled.implant || implantDisabled.five} />)} />
+              <Text style={styles.subLabel}>IUDs – select one only</Text>
+              <Controller control={control} name="iud_copper_t" render={({ field }) => (<AppCheckbox label="IUD Copper-T" value={field.value} onChange={field.onChange} disabled={methodDisabled.iud || iudDisabled.copper} />)} />
+              <Controller control={control} name="iud_hormonal_3_years" render={({ field }) => (<AppCheckbox label="IUD Hormonal 3 Yr" value={field.value} onChange={field.onChange} disabled={methodDisabled.iud || iudDisabled.h3} />)} />
+              <Controller control={control} name="iud_hormonal_5_years" render={({ field }) => (<AppCheckbox label="IUD Hormonal 5 Yr" value={field.value} onChange={field.onChange} disabled={methodDisabled.iud || iudDisabled.h5} />)} />
+            </>
+          )}
           <Text style={styles.subLabel}>Permanent & FAM</Text>
-          {watchSex !== 'M' && <Controller control={control} name="tubal_ligation" render={({ field }) => (<AppCheckbox label="Tubal Ligation" value={field.value} onChange={field.onChange} />)} />}
-          {watchSex !== 'F' && <Controller control={control} name="vasectomy" render={({ field }) => (<AppCheckbox label="Vasectomy" value={field.value} onChange={field.onChange} />)} />}
-          <Controller control={control} name="fam_standard_days" render={({ field }) => (<AppCheckbox label="Standard Days" value={field.value} onChange={field.onChange} />)} />
-          <Controller control={control} name="fam_lam" render={({ field }) => (<AppCheckbox label="LAM" value={field.value} onChange={field.onChange} />)} />
-          <Controller control={control} name="fam_two_day" render={({ field }) => (<AppCheckbox label="Two Day Method" value={field.value} onChange={field.onChange} />)} />
+          {watchSex !== 'M' && <Controller control={control} name="tubal_ligation" render={({ field }) => (<AppCheckbox label="Tubal Ligation" value={field.value} onChange={field.onChange} disabled={methodDisabled.permanent} />)} />}
+          {watchSex !== 'F' && <Controller control={control} name="vasectomy" render={({ field }) => (<AppCheckbox label="Vasectomy" value={field.value} onChange={field.onChange} disabled={methodDisabled.permanent} />)} />}
+          {watchSex !== 'M' && (
+            <>
+              <Controller control={control} name="fam_standard_days" render={({ field }) => (<AppCheckbox label="Standard Days" value={field.value} onChange={field.onChange} disabled={methodDisabled.fam} />)} />
+              <Controller control={control} name="fam_lam" render={({ field }) => (<AppCheckbox label="LAM" value={field.value} onChange={field.onChange} disabled={methodDisabled.fam} />)} />
+              <Controller control={control} name="fam_two_day" render={({ field }) => (<AppCheckbox label="Two Day Method" value={field.value} onChange={field.onChange} disabled={methodDisabled.fam} />)} />
+            </>
+          )}
         </View>
 
-        {/* Post-pregnancy & LARC */}
-        <SectionHeader title="Post-Pregnancy & LARC" icon="heart" subtitle="Columns 21–22" />
-        <View style={styles.section}>
-          <Controller control={control} name="postpartum_fp_timing" render={({ field }) => (
-            <AppSelect label="Postpartum FP Timing" options={opts.ppTiming} value={field.value} onChange={field.onChange} />
-          )} />
-          <Controller control={control} name="post_abortion_fp_timing" render={({ field }) => (
-            <AppSelect label="Post-Abortion FP Timing" options={opts.paTiming} value={field.value} onChange={field.onChange} />
-          )} />
-          <Controller control={control} name="implant_removal_reason" render={({ field }) => (
-            <AppSelect label="Implant Removal Reason" options={opts.larcReason} value={field.value} onChange={field.onChange} />
-          )} />
-          {!!watchImplRemoval && (
-            <Controller control={control} name="implant_removal_timing" render={({ field }) => (
-              <AppSelect label="Implant Removal Timing" options={opts.larcTiming} value={field.value} onChange={field.onChange} />
-            )} />
-          )}
-          <Controller control={control} name="iud_removal_reason" render={({ field }) => (
-            <AppSelect label="IUD Removal Reason" options={opts.larcReason} value={field.value} onChange={field.onChange} />
-          )} />
-          {!!watchIudRemoval && (
-            <Controller control={control} name="iud_removal_timing" render={({ field }) => (
-              <AppSelect label="IUD Removal Timing" options={opts.larcTiming} value={field.value} onChange={field.onChange} />
-            )} />
-          )}
-        </View>
+        {/* Post-pregnancy (female only) */}
+        {watchSex !== 'M' && (
+          <>
+            <SectionHeader title="Post-Pregnancy" icon="heart" subtitle="Columns 21–22" />
+            <View style={styles.section}>
+              <Controller control={control} name="postpartum_fp_timing" render={({ field }) => (
+                <AppSelect label="Postpartum FP Timing" options={opts.ppTiming} value={field.value} onChange={field.onChange} />
+              )} />
+              <Controller control={control} name="post_abortion_fp_timing" render={({ field }) => (
+                <AppSelect label="Post-Abortion FP Timing" options={opts.paTiming} value={field.value} onChange={field.onChange} />
+              )} />
+            </View>
+          </>
+        )}
+
+        {/* LARC Removal (female only) */}
+        {watchSex !== 'M' && (
+          <>
+            <SectionHeader title="LARC Removal" icon="medkit-outline" subtitle="Implant / IUD removal" />
+            <View style={styles.section}>
+              <Controller control={control} name="implant_removal_reason" render={({ field }) => (
+                <AppSelect label="Implant Removal Reason" options={opts.larcReason} value={field.value} onChange={field.onChange} />
+              )} />
+              {!!watchImplRemoval && (
+                <Controller control={control} name="implant_removal_timing" render={({ field }) => (
+                  <AppSelect label="Implant Removal Timing" options={opts.larcTiming} value={field.value} onChange={field.onChange} />
+                )} />
+              )}
+              <Controller control={control} name="iud_removal_reason" render={({ field }) => (
+                <AppSelect label="IUD Removal Reason" options={opts.larcReason} value={field.value} onChange={field.onChange} />
+              )} />
+              {!!watchIudRemoval && (
+                <Controller control={control} name="iud_removal_timing" render={({ field }) => (
+                  <AppSelect label="IUD Removal Timing" options={opts.larcTiming} value={field.value} onChange={field.onChange} />
+                )} />
+              )}
+            </View>
+          </>
+        )}
 
         {/* Side Effects & Other Services */}
         <SectionHeader title="Side Effects & Services" icon="alert-circle" subtitle="Columns 23–25" />
@@ -292,19 +403,33 @@ export function NewRegistrationScreen() {
           <Text style={styles.subLabel}>Side Effects</Text>
           <Controller control={control} name="side_effects" render={({ field }) => {
             const selected = field.value ? field.value.split(',').filter(Boolean) : [];
+            const list = opts.sideEffects ?? [];
+            const items = list.map((se, idx) => {
+              const item = (se as unknown) as Record<string, unknown>;
+              const code = String(item?.code ?? item?.Code ?? item?.value ?? '').trim();
+              const rawLabel = String(item?.label ?? item?.Label ?? item?.name ?? '').trim();
+              const label = rawLabel ? (code ? `${code} – ${rawLabel}` : rawLabel) : (code || `Option ${idx + 1}`);
+              return { code, label, idx };
+            }).filter((x) => x.code.length > 0);
             return (
-              <View style={styles.checkGrid}>
-                {opts.sideEffects.map((se) => (
-                  <AppCheckbox
-                    key={se.code}
-                    label={se.code}
-                    value={selected.includes(se.code)}
-                    onChange={(v) => {
-                      const next = v ? [...selected, se.code] : selected.filter((c) => c !== se.code);
-                      field.onChange(next.join(','));
-                    }}
-                  />
-                ))}
+              <View style={styles.sideEffectsGrid}>
+                {items.length === 0 ? (
+                  <Text style={styles.helperText}>No side effect options loaded. Check connection or try again later.</Text>
+                ) : (
+                  items.map(({ code, label, idx }) => (
+                    <View key={`${code}-${idx}`} style={styles.sideEffectItem}>
+                      <AppCheckbox
+                        compact
+                        label={label}
+                        value={selected.includes(code)}
+                        onChange={(v) => {
+                          const next = v ? [...selected, code] : selected.filter((c) => c !== code);
+                          field.onChange(next.join(','));
+                        }}
+                      />
+                    </View>
+                  ))
+                )}
               </View>
             );
           }} />
@@ -379,5 +504,16 @@ const styles = StyleSheet.create({
   },
   checkRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.lg },
   checkGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  sideEffectsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+  },
+  sideEffectItem: {
+    width: '48%',
+    minWidth: 140,
+  },
+  helperText: { fontSize: 13, color: colors.textMuted, fontStyle: 'italic', marginVertical: spacing.sm },
   formError: { fontSize: 12, color: colors.danger, marginBottom: spacing.sm },
 });

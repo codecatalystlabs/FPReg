@@ -39,6 +39,19 @@
     </div>
 
     <div class="content-area">
+      <div class="card mb-3">
+        <div class="card-body d-flex flex-wrap align-items-center gap-2">
+          <div>
+            <label for="userUpload" class="form-label mb-0 me-2 fw-semibold">Bulk upload users (CSV)</label>
+          </div>
+          <input type="file" id="userUpload" accept=".csv" class="form-control form-control-sm" style="max-width:260px">
+          <button class="btn btn-sm btn-outline-primary" id="userUploadBtn"><i class="bi bi-upload me-1"></i>Upload</button>
+          <div class="text-muted small ms-auto">
+            Expected columns: full_name, email, password, role, facility_id
+          </div>
+        </div>
+      </div>
+
       <div class="card">
         <div class="card-body p-0">
           <div class="table-responsive">
@@ -56,15 +69,16 @@
     </div>
   </div>
 
-  <!-- Create User Modal -->
+  <!-- Create / Edit User Modal -->
   <div class="modal fade" id="userModal" tabindex="-1">
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title">Add User</h5>
+          <h5 class="modal-title" id="userModalTitle">Add User</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <form id="userForm">
+          <input type="hidden" id="u_id" value="">
           <div class="modal-body">
             <div class="mb-3">
               <label class="form-label">Full Name *</label>
@@ -74,9 +88,10 @@
               <label class="form-label">Email *</label>
               <input type="email" class="form-control" id="u_email" required>
             </div>
-            <div class="mb-3">
+            <div class="mb-3" id="u_password_wrap">
               <label class="form-label">Password *</label>
-              <input type="password" class="form-control" id="u_password" minlength="8" required>
+              <input type="password" class="form-control" id="u_password" minlength="8">
+              <div class="form-text" id="u_password_help">Leave blank when editing to keep current password</div>
             </div>
             <div class="mb-3">
               <label class="form-label">Role *</label>
@@ -88,13 +103,15 @@
               </select>
             </div>
             <div class="mb-3">
-              <label class="form-label">Facility *</label>
-              <select class="form-select" id="u_facility_id"></select>
+              <label class="form-label">Facility</label>
+              <select class="form-select" id="u_facility_id">
+                <option value="">No facility (Super Admin only)</option>
+              </select>
             </div>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-            <button type="submit" class="btn btn-primary">Create User</button>
+            <button type="submit" class="btn btn-primary" id="userSubmitBtn">Create User</button>
           </div>
         </form>
       </div>
@@ -126,6 +143,7 @@
               <td>${u.facility ? u.facility.name : '–'}</td>
               <td>${u.is_active ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-danger">Inactive</span>'}</td>
               <td>
+                ${u.is_active ? `<button class="btn btn-sm btn-outline-primary me-1" onclick="editUser('${u.id}')">Edit</button>` : ''}
                 ${u.is_active ? `<button class="btn btn-sm btn-outline-danger" onclick="deactivateUser('${u.id}')">Deactivate</button>` : ''}
               </td>
             </tr>`).join('');
@@ -134,38 +152,105 @@
         }
       }
 
-      // Load facilities for the dropdown
-      try {
-        const data = await App.api('GET', '/facilities?per_page=100');
-        const sel = document.getElementById('u_facility_id');
-        sel.innerHTML = '<option value="">Select facility</option>';
-        (data.data || []).forEach(f => {
-          sel.innerHTML += `<option value="${f.id}">${f.name} (${f.code})</option>`;
-        });
-      } catch (e) {}
+      let facilitiesList = [];
+      async function loadFacilitiesDropdown() {
+        try {
+          const data = await App.api('GET', '/facilities?per_page=500');
+          facilitiesList = data.data || [];
+          const sel = document.getElementById('u_facility_id');
+          sel.innerHTML = '<option value="">No facility (Super Admin only)</option>';
+          facilitiesList.forEach(f => {
+            sel.innerHTML += `<option value="${f.id}">${f.name} (${f.code})</option>`;
+          });
+        } catch (e) {}
+      }
 
+      await loadFacilitiesDropdown();
       await loadUsers();
+
+      // Facility admin: hide higher roles in dropdown
+      const currentRole = App.user && App.user.role;
+      if (currentRole === 'facility_admin') {
+        const roleSelect = document.getElementById('u_role');
+        ['superadmin', 'facility_admin'].forEach(val => {
+          const opt = Array.from(roleSelect.options).find(o => o.value === val);
+          if (opt) roleSelect.removeChild(opt);
+        });
+      }
+
+      function openAddUser() {
+        document.getElementById('userModalTitle').textContent = 'Add User';
+        document.getElementById('userSubmitBtn').textContent = 'Create User';
+        document.getElementById('u_id').value = '';
+        document.getElementById('userForm').reset();
+        document.getElementById('u_password').required = true;
+        document.getElementById('u_password_help').classList.add('d-none');
+        loadFacilitiesDropdown();
+      }
+
+      window.editUser = async (id) => {
+        try {
+          const data = await App.api('GET', '/users/' + id);
+          const u = data.data;
+          document.getElementById('userModalTitle').textContent = 'Edit User';
+          document.getElementById('userSubmitBtn').textContent = 'Save';
+          document.getElementById('u_id').value = u.id;
+          document.getElementById('u_full_name').value = u.full_name || '';
+          document.getElementById('u_email').value = u.email || '';
+          document.getElementById('u_password').value = '';
+          document.getElementById('u_password').required = false;
+          document.getElementById('u_password_help').classList.remove('d-none');
+          document.getElementById('u_role').value = u.role || 'facility_user';
+          const sel = document.getElementById('u_facility_id');
+          sel.innerHTML = '<option value="">No facility (Super Admin only)</option>';
+          const currentInList = facilitiesList.some(f => f.id === u.facility_id);
+          if (u.facility_id && u.facility && !currentInList) {
+            sel.innerHTML += `<option value="${u.facility_id}" selected>${u.facility.name} (current)</option>`;
+          }
+          facilitiesList.forEach(f => {
+            sel.innerHTML += `<option value="${f.id}" ${u.facility_id === f.id ? 'selected' : ''}>${f.name} (${f.code})</option>`;
+          });
+          if (u.facility_id && !sel.value) sel.value = u.facility_id;
+          new bootstrap.Modal(document.getElementById('userModal')).show();
+        } catch (err) {
+          App.showToast(err.message || 'Failed to load user', 'error');
+        }
+      };
 
       document.getElementById('userForm').addEventListener('submit', async (e) => {
         e.preventDefault();
+        const id = document.getElementById('u_id').value;
         const facilityVal = document.getElementById('u_facility_id').value;
         const body = {
-          full_name: document.getElementById('u_full_name').value,
-          email: document.getElementById('u_email').value,
-          password: document.getElementById('u_password').value,
+          full_name: document.getElementById('u_full_name').value.trim(),
+          email: document.getElementById('u_email').value.trim(),
           role: document.getElementById('u_role').value,
+          facility_id: facilityVal || null,
         };
-        if (facilityVal) body.facility_id = facilityVal;
+        const pwd = document.getElementById('u_password').value;
+        if (pwd) body.password = pwd;
         try {
-          await App.api('POST', '/users', body);
-          App.showToast('User created');
+          if (id) {
+            await App.api('PUT', '/users/' + id, body);
+            App.showToast('User updated');
+          } else {
+            if (!pwd || pwd.length < 8) {
+              App.showToast('Password must be at least 8 characters', 'error');
+              return;
+            }
+            body.password = pwd;
+            await App.api('POST', '/users', body);
+            App.showToast('User created');
+          }
           bootstrap.Modal.getInstance(document.getElementById('userModal')).hide();
           document.getElementById('userForm').reset();
           await loadUsers();
         } catch (err) {
-          App.showToast(err.message || 'Failed to create user', 'error');
+          App.showToast(err.message || (id ? 'Failed to update user' : 'Failed to create user'), 'error');
         }
       });
+
+      document.querySelector('[data-bs-target="#userModal"]').addEventListener('click', openAddUser);
 
       window.deactivateUser = async (id) => {
         if (!confirm('Deactivate this user?')) return;
@@ -177,6 +262,27 @@
           App.showToast(err.message || 'Failed', 'error');
         }
       };
+
+      // Bulk upload users (CSV)
+      document.getElementById('userUploadBtn').addEventListener('click', async () => {
+        const input = document.getElementById('userUpload');
+        if (!input.files || input.files.length === 0) {
+          App.showToast('Please choose a CSV file first', 'warning');
+          return;
+        }
+        const file = input.files[0];
+        const formData = new FormData();
+        formData.append('file', file);
+        try {
+          const res = await App.apiForm('POST', '/users/import', formData);
+          const summary = res.data || res;
+          App.showToast(`Imported ${summary.imported || 0} users${summary.failed && summary.failed > 0 ? ', some rows failed' : ''}`);
+          input.value = '';
+          await loadUsers();
+        } catch (err) {
+          App.showToast(err.message || 'Failed to import users', 'error');
+        }
+      });
     });
   </script>
 </body>

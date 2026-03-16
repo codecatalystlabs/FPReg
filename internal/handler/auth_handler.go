@@ -74,6 +74,11 @@ type RefreshRequest struct {
 	RefreshToken string `json:"refresh_token" binding:"required"`
 }
 
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"current_password" binding:"required"`
+	NewPassword     string `json:"new_password" binding:"required"`
+}
+
 // Refresh godoc
 // @Summary      Refresh tokens
 // @Description  Exchange a refresh token for a new access + refresh token pair
@@ -149,4 +154,33 @@ func (h *AuthHandler) Me(c *gin.Context) {
 		"role":        role,
 		"facility_id": facilityID,
 	})
+}
+
+// ChangePassword godoc
+// @Summary      Change own password
+// @Description  Allows the currently authenticated user to change their password
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body body ChangePasswordRequest true "Password change payload"
+// @Success      200  {object} utils.APIResponse
+// @Router       /api/v1/auth/change-password [post]
+func (h *AuthHandler) ChangePassword(c *gin.Context) {
+	var req ChangePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.RespondError(c, http.StatusBadRequest, "current_password and new_password are required")
+		return
+	}
+	userID := middleware.GetUserID(c)
+	ip := utils.GetClientIP(c)
+	ua := c.GetHeader("User-Agent")
+
+	if err := h.authSvc.ChangePassword(userID, req.CurrentPassword, req.NewPassword); err != nil {
+		utils.RespondError(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	h.auditSvc.Log(&userID, nil, models.AuditUpdate, "auth", userID.String(), ip, ua, "Changed password")
+	utils.RespondMessage(c, "Password changed successfully")
 }

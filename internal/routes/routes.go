@@ -26,6 +26,9 @@ type Handlers struct {
 }
 
 func Setup(r *gin.Engine, h Handlers, authSvc *service.AuthService, auditSvc *service.AuditService, cfg *config.Config) {
+	if cfg.BasePath != "" {
+		r.GET(cfg.BasePath, func(c *gin.Context) { c.Redirect(http.StatusMovedPermanently, cfg.BasePath+"/") })
+	}
 	base := r.Group(cfg.BasePath)
 
 	base.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler,
@@ -67,6 +70,7 @@ func Setup(r *gin.Engine, h Handlers, authSvc *service.AuthService, auditSvc *se
 	{
 		authProtected.POST("/logout", h.Auth.Logout)
 		authProtected.GET("/me", h.Auth.Me)
+		authProtected.POST("/change-password", h.Auth.ChangePassword)
 	}
 
 	// Option sets (authenticated)
@@ -104,6 +108,7 @@ func Setup(r *gin.Engine, h Handlers, authSvc *service.AuthService, auditSvc *se
 		users.POST("", h.User.Create)
 		users.PUT("/:id", h.User.Update)
 		users.PATCH("/:id/deactivate", h.User.Deactivate)
+		users.POST("/import", h.User.Import)
 	}
 
 	// Registrations

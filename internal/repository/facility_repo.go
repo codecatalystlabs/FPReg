@@ -31,6 +31,24 @@ func (r *FacilityRepository) FindByCode(code string) (*models.Facility, error) {
 	return &f, err
 }
 
+func (r *FacilityRepository) FindByUID(uid string) (*models.Facility, error) {
+	if uid == "" {
+		return nil, gorm.ErrRecordNotFound
+	}
+	var f models.Facility
+	err := r.db.First(&f, "uid = ?", uid).Error
+	return &f, err
+}
+
+func (r *FacilityRepository) UpsertByUID(f *models.Facility) error {
+	existing, err := r.FindByUID(f.UID)
+	if err == nil {
+		f.ID = existing.ID
+		return r.db.Save(f).Error
+	}
+	return r.db.Create(f).Error
+}
+
 func (r *FacilityRepository) Update(f *models.Facility) error {
 	return r.db.Save(f).Error
 }

@@ -2,6 +2,7 @@ export type Role = 'superadmin' | 'facility_admin' | 'facility_user' | 'reviewer
 
 export interface Facility {
   id: string;
+  uid?: string;
   name: string;
   code: string;
   level: string;

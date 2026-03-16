@@ -32,6 +32,14 @@ type CreateUserInput struct {
 func (s *UserService) Create(input CreateUserInput, actorID uuid.UUID, ip, ua string) (*models.User, []utils.ErrorDetail) {
 	var errs []utils.ErrorDetail
 
+	actor, _ := s.repo.FindByID(actorID)
+	var actorRole models.Role
+	var actorFacilityID *uuid.UUID
+	if actor != nil {
+		actorRole = actor.Role
+		actorFacilityID = actor.FacilityID
+	}
+
 	if !utils.IsValidEmail(input.Email) {
 		errs = append(errs, utils.ErrorDetail{Field: "email", Message: "Valid email is required"})
 	}
@@ -48,6 +56,21 @@ func (s *UserService) Create(input CreateUserInput, actorID uuid.UUID, ip, ua st
 		errs = append(errs, utils.ErrorDetail{Field: "role", Message: "Invalid role"})
 	}
 
+	// Facility admin can only create users with roles below them (facility_user or reviewer)
+	// and only within their own facility.
+	if actorRole == models.RoleFacilityAdmin {
+		if role == models.RoleSuperAdmin || role == models.RoleFacilityAdmin {
+			errs = append(errs, utils.ErrorDetail{Field: "role", Message: "Facility admin can only assign Facility User or Reviewer roles"})
+		}
+		if actorFacilityID == nil {
+			errs = append(errs, utils.ErrorDetail{Field: "facility_id", Message: "Your account is not linked to a facility"})
+		} else {
+			// Force created user into actor's facility
+			input.FacilityID = actorFacilityID
+		}
+	}
+
+	// Non-superadmin (including facility_admin) must always belong to a facility
 	if role != models.RoleSuperAdmin && input.FacilityID == nil {
 		errs = append(errs, utils.ErrorDetail{Field: "facility_id", Message: "Facility is required for non-superadmin users"})
 	}
@@ -95,14 +118,49 @@ func (s *UserService) Update(id uuid.UUID, input CreateUserInput, actorID uuid.U
 		return nil, errors.New("user not found")
 	}
 
+	actor, _ := s.repo.FindByID(actorID)
+	var actorRole models.Role
+	var actorFacilityID *uuid.UUID
+	if actor != nil {
+		actorRole = actor.Role
+		actorFacilityID = actor.FacilityID
+	}
+
+	// Only superadmin can modify a superadmin user
+	if user.Role == models.RoleSuperAdmin && actorRole != models.RoleSuperAdmin {
+		return nil, errors.New("only superadmin can modify a superadmin user")
+	}
+
 	if strings.TrimSpace(input.FullName) != "" {
 		user.FullName = strings.TrimSpace(input.FullName)
 	}
+	newRole := user.Role
 	if input.Role != "" {
-		user.Role = models.Role(input.Role)
+		newRole = models.Role(input.Role)
 	}
-	if input.FacilityID != nil {
-		user.FacilityID = input.FacilityID
+
+	// Facility admin can only assign roles below them and only within their own facility
+	if actorRole == models.RoleFacilityAdmin {
+		if newRole == models.RoleSuperAdmin || newRole == models.RoleFacilityAdmin {
+			return nil, errors.New("facility admin can only assign Facility User or Reviewer roles")
+		}
+		if actorFacilityID == nil {
+			return nil, errors.New("your account is not linked to a facility")
+		}
+		// They can only manage users in their own facility
+		if user.FacilityID == nil || *user.FacilityID != *actorFacilityID {
+			return nil, errors.New("you can only manage users in your facility")
+		}
+		// Force user to remain in actor's facility
+		input.FacilityID = actorFacilityID
+	}
+
+	user.Role = newRole
+
+	// Always apply facility_id on update so superadmin can move user to another facility or clear facility
+	user.FacilityID = input.FacilityID
+	if user.Role != models.RoleSuperAdmin && user.FacilityID == nil {
+		return nil, errors.New("facility is required for non-superadmin users")
 	}
 	if input.Password != "" && len(input.Password) >= 8 {
 		hash, _ := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)

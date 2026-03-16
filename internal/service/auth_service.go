@@ -82,6 +82,25 @@ func (s *AuthService) Logout(refreshToken string) error {
 	return s.tokenRepo.Revoke(rt.ID)
 }
 
+func (s *AuthService) ChangePassword(userID uuid.UUID, oldPassword, newPassword string) error {
+	user, err := s.userRepo.FindByID(userID)
+	if err != nil {
+		return errors.New("user not found")
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(oldPassword)); err != nil {
+		return errors.New("current password is incorrect")
+	}
+	if len(newPassword) < 8 {
+		return errors.New("new password must be at least 8 characters")
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return errors.New("failed to hash password")
+	}
+	user.Password = string(hash)
+	return s.userRepo.Update(user)
+}
+
 func (s *AuthService) ValidateAccessToken(tokenStr string) (*AccessClaims, error) {
 	token, err := jwt.ParseWithClaims(tokenStr, &AccessClaims{}, func(t *jwt.Token) (interface{}, error) {
 		return []byte(s.cfg.JWTSecret), nil

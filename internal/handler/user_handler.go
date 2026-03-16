@@ -1,9 +1,12 @@
 package handler
 
 import (
+	"encoding/csv"
 	"net/http"
+	"strings"
 
 	"fpreg/internal/middleware"
+	"fpreg/internal/models"
 	"fpreg/internal/service"
 	"fpreg/internal/utils"
 
@@ -142,6 +145,94 @@ func (h *UserHandler) Update(c *gin.Context) {
 		return
 	}
 	utils.RespondOK(c, user)
+}
+
+// ImportUsers godoc
+// @Summary      Bulk import users from CSV
+// @Tags         users
+// @Accept       multipart/form-data
+// @Produce      json
+// @Security     BearerAuth
+// @Param        file formData file true "CSV file with columns: full_name,email,password,role,facility_id"
+// @Success      200  {object} utils.APIResponse
+// @Router       /api/v1/users/import [post]
+func (h *UserHandler) Import(c *gin.Context) {
+	file, _, err := c.Request.FormFile("file")
+	if err != nil {
+		utils.RespondError(c, http.StatusBadRequest, "File is required")
+		return
+	}
+	defer file.Close()
+
+	reader := csv.NewReader(file)
+	rows, err := reader.ReadAll()
+	if err != nil || len(rows) < 2 {
+		utils.RespondError(c, http.StatusBadRequest, "Invalid or empty CSV file")
+		return
+	}
+
+	header := rows[0]
+	fullNameIdx, emailIdx, passwordIdx, roleIdx, facilityIDIdx := -1, -1, -1, -1, -1
+	for i, h := range header {
+		switch strings.ToLower(strings.TrimSpace(h)) {
+		case "full_name":
+			fullNameIdx = i
+		case "email":
+			emailIdx = i
+		case "password":
+			passwordIdx = i
+		case "role":
+			roleIdx = i
+		case "facility_id":
+			facilityIDIdx = i
+		}
+	}
+	if fullNameIdx < 0 || emailIdx < 0 || passwordIdx < 0 || roleIdx < 0 {
+		utils.RespondError(c, http.StatusBadRequest, "CSV must have columns: full_name,email,password,role[,facility_id]")
+		return
+	}
+
+	actorID := middleware.GetUserID(c)
+	ip := utils.GetClientIP(c)
+	ua := c.GetHeader("User-Agent")
+	roleVal, _ := c.Get("user_role")
+	actorRole, _ := roleVal.(models.Role)
+	actorFacilityID := middleware.GetFacilityID(c)
+
+	imported := 0
+	failed := 0
+
+	for i, row := range rows[1:] {
+		if len(row) <= emailIdx {
+			failed++
+			continue
+		}
+		input := service.CreateUserInput{
+			Email:    row[emailIdx],
+			Password: row[passwordIdx],
+			FullName: row[fullNameIdx],
+			Role:     row[roleIdx],
+		}
+
+		// Facility: for superadmin we accept facility_id from CSV; for facility_admin we force their own facility
+		if actorRole == models.RoleFacilityAdmin {
+			input.FacilityID = actorFacilityID
+		} else if facilityIDIdx >= 0 && facilityIDIdx < len(row) && row[facilityIDIdx] != "" {
+			if fid, err := uuid.Parse(row[facilityIDIdx]); err == nil {
+				input.FacilityID = &fid
+			}
+		}
+
+		if _, errs := h.userSvc.Create(input, actorID, ip, ua); errs != nil {
+			failed++
+			_ = i // row index reserved for future detailed reporting
+			continue
+		}
+		imported++
+	}
+
+	resp := gin.H{"imported": imported, "failed": failed}
+	utils.RespondOK(c, resp)
 }
 
 // DeactivateUser godoc

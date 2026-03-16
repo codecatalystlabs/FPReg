@@ -9,20 +9,22 @@ interface Props {
   onChange: (value: boolean) => void;
   helpText?: string;
   disabled?: boolean;
+  /** Tighter layout for grids; label won't be squeezed and takes natural width */
+  compact?: boolean;
 }
 
-export function AppCheckbox({ label, value, onChange, helpText, disabled }: Props) {
+export function AppCheckbox({ label, value, onChange, helpText, disabled, compact }: Props) {
   return (
     <TouchableOpacity
-      style={[styles.container, disabled && styles.disabled]}
+      style={[styles.container, compact && styles.containerCompact, disabled && styles.disabled]}
       onPress={() => !disabled && onChange(!value)}
       activeOpacity={0.7}
     >
       <View style={[styles.box, value && styles.boxChecked]}>
         {value && <Ionicons name="checkmark" size={14} color={colors.textInverse} />}
       </View>
-      <View style={styles.textContainer}>
-        <Text style={styles.label}>{label}</Text>
+      <View style={[styles.textContainer, compact && styles.textContainerCompact]}>
+        <Text style={styles.label} numberOfLines={2}>{label}</Text>
         {helpText && <Text style={styles.help}>{helpText}</Text>}
       </View>
     </TouchableOpacity>
@@ -35,6 +37,11 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: spacing.sm + 2,
     paddingVertical: spacing.xs + 2,
+  },
+  containerCompact: {
+    paddingVertical: spacing.xs,
+    gap: spacing.sm,
+    maxWidth: '100%',
   },
   disabled: { opacity: 0.4 },
   box: {
@@ -51,7 +58,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
-  textContainer: { flex: 1 },
-  label: { ...typography.body, color: colors.text },
+  textContainer: { flex: 1, minWidth: 0 },
+  textContainerCompact: { flex: 0, flexShrink: 0 },
+  label: { fontSize: 15, color: colors.text, fontWeight: '400' },
   help: { ...typography.caption, color: colors.textMuted, marginTop: 2 },
 });
