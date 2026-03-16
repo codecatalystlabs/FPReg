@@ -77,8 +77,8 @@ func (s *FacilityService) GetByID(id uuid.UUID) (*models.Facility, error) {
 	return s.repo.FindByID(id)
 }
 
-func (s *FacilityService) List(page, perPage int) ([]models.Facility, int64, error) {
-	return s.repo.List(page, perPage)
+func (s *FacilityService) List(page, perPage int, search string) ([]models.Facility, int64, error) {
+	return s.repo.List(page, perPage, search)
 }
 
 func (s *FacilityService) Update(id uuid.UUID, input CreateFacilityInput, actorID uuid.UUID, ip, ua string) (*models.Facility, error) {

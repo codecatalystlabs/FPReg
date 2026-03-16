@@ -131,6 +131,17 @@ func (s *UserService) Update(id uuid.UUID, input CreateUserInput, actorID uuid.U
 		return nil, errors.New("only superadmin can modify a superadmin user")
 	}
 
+	// Update email if provided and different
+	if strings.TrimSpace(input.Email) != "" && input.Email != user.Email {
+		if !utils.IsValidEmail(input.Email) {
+			return nil, errors.New("valid email is required")
+		}
+		if existing, _ := s.repo.FindByEmail(input.Email); existing != nil && existing.ID != uuid.Nil {
+			return nil, errors.New("email already in use")
+		}
+		user.Email = strings.TrimSpace(input.Email)
+	}
+
 	if strings.TrimSpace(input.FullName) != "" {
 		user.FullName = strings.TrimSpace(input.FullName)
 	}

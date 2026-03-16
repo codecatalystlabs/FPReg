@@ -57,12 +57,26 @@ func (r *FacilityRepository) Delete(id uuid.UUID) error {
 	return r.db.Delete(&models.Facility{}, "id = ?", id).Error
 }
 
-func (r *FacilityRepository) List(page, perPage int) ([]models.Facility, int64, error) {
+func (r *FacilityRepository) List(page, perPage int, search string) ([]models.Facility, int64, error) {
 	var facilities []models.Facility
 	var total int64
-	r.db.Model(&models.Facility{}).Count(&total)
-	err := r.db.Offset((page - 1) * perPage).Limit(perPage).
-		Order("name ASC").
+
+	q := r.db.Model(&models.Facility{})
+	if search != "" {
+		like := "%" + search + "%"
+		q = q.Where(
+			r.db.Where("name ILIKE ?", like).
+				Or("code ILIKE ?", like).
+				Or("district ILIKE ?", like).
+				Or("subcounty ILIKE ?", like),
+		)
+	}
+
+	q.Count(&total)
+
+	err := q.Order("name ASC").
+		Offset((page - 1) * perPage).
+		Limit(perPage).
 		Find(&facilities).Error
 	return facilities, total, err
 }

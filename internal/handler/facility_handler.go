@@ -53,11 +53,13 @@ func (h *FacilityHandler) Create(c *gin.Context) {
 // @Security     BearerAuth
 // @Param        page query int false "Page"
 // @Param        per_page query int false "Per page"
+// @Param        search query string false "Search by name, code, district, or subcounty"
 // @Success      200  {object} utils.APIResponse
 // @Router       /api/v1/facilities [get]
 func (h *FacilityHandler) List(c *gin.Context) {
 	page, perPage := utils.GetPagination(c)
-	items, total, err := h.facilitySvc.List(page, perPage)
+	search := c.Query("search")
+	items, total, err := h.facilitySvc.List(page, perPage, search)
 	if err != nil {
 		utils.RespondError(c, http.StatusInternalServerError, "Failed to list facilities")
 		return

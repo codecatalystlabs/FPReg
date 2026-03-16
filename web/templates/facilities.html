@@ -39,6 +39,16 @@
     </div>
 
     <div class="content-area">
+      <div class="card mb-3">
+        <div class="card-body d-flex flex-wrap align-items-center gap-2">
+          <div class="flex-grow-1" style="min-width:220px">
+            <input type="text" id="facilitySearch" class="form-control form-control-sm" placeholder="Search by name, code, district or subcounty">
+          </div>
+          <button class="btn btn-sm btn-outline-primary" id="facilitySearchBtn"><i class="bi bi-search me-1"></i>Search</button>
+          <button class="btn btn-sm btn-outline-secondary" id="facilityClearSearch"><i class="bi bi-x-circle me-1"></i>Clear</button>
+        </div>
+      </div>
+
       <div class="card">
         <div class="card-body p-0">
           <div class="table-responsive">
@@ -50,6 +60,13 @@
                 <tr><td colspan="6" class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary"></div></td></tr>
               </tbody>
             </table>
+          </div>
+          <div class="d-flex justify-content-between align-items-center border-top px-3 py-2">
+            <small class="text-muted" id="facilitiesMeta"></small>
+            <div class="btn-group btn-group-sm" role="group">
+              <button class="btn btn-outline-secondary" id="facilitiesPrev">&laquo; Prev</button>
+              <button class="btn btn-outline-secondary" id="facilitiesNext">Next &raquo;</button>
+            </div>
           </div>
         </div>
       </div>
@@ -89,29 +106,71 @@
       if (!App.requireAuth()) return;
       App.initSidebar();
 
-      async function loadFacilities() {
+      let currentPage = 1;
+      let totalPages = 1;
+      let currentSearch = '';
+
+      async function loadFacilities(page = 1) {
+        currentPage = page;
         try {
-          const data = await App.api('GET', '/facilities?per_page=100');
+          const params = new URLSearchParams();
+          params.set('page', String(page));
+          params.set('per_page', '20');
+          if (currentSearch.trim()) params.set('search', currentSearch.trim());
+
+          const data = await App.api('GET', '/facilities?' + params.toString());
           const tbody = document.getElementById('facilitiesBody');
           const items = data.data || [];
           if (items.length === 0) {
             tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No facilities</td></tr>';
-            return;
+          } else {
+            tbody.innerHTML = items.map(f => `
+              <tr>
+                <td class="fw-semibold">${f.name}</td>
+                <td><code>${f.code}</code></td>
+                <td>${f.level || '–'}</td>
+                <td>${f.district || '–'}</td>
+                <td><code>${f.client_code_prefix}</code></td>
+                <td><button class="btn btn-sm btn-outline-danger" onclick="deleteFacility('${f.id}','${f.name}')">Delete</button></td>
+              </tr>`).join('');
           }
-          tbody.innerHTML = items.map(f => `
-            <tr>
-              <td class="fw-semibold">${f.name}</td>
-              <td><code>${f.code}</code></td>
-              <td>${f.level || '–'}</td>
-              <td>${f.district || '–'}</td>
-              <td><code>${f.client_code_prefix}</code></td>
-              <td><button class="btn btn-sm btn-outline-danger" onclick="deleteFacility('${f.id}','${f.name}')">Delete</button></td>
-            </tr>`).join('');
+          const meta = data.meta || {};
+          totalPages = meta.total_pages || 1;
+          const total = meta.total || items.length;
+          const start = ((meta.page || page) - 1) * (meta.per_page || 20) + (items.length ? 1 : 0);
+          const end = ((meta.page || page) - 1) * (meta.per_page || 20) + items.length;
+          const metaEl = document.getElementById('facilitiesMeta');
+          metaEl.textContent = total ? `Showing ${start}-${end} of ${total} facilities` : 'No facilities';
+
+          document.getElementById('facilitiesPrev').disabled = currentPage <= 1;
+          document.getElementById('facilitiesNext').disabled = currentPage >= totalPages;
         } catch (e) {
           App.showToast('Failed to load facilities', 'error');
         }
       }
-      await loadFacilities();
+      await loadFacilities(1);
+
+      document.getElementById('facilitySearchBtn').addEventListener('click', () => {
+        currentSearch = document.getElementById('facilitySearch').value;
+        loadFacilities(1);
+      });
+      document.getElementById('facilityClearSearch').addEventListener('click', () => {
+        document.getElementById('facilitySearch').value = '';
+        currentSearch = '';
+        loadFacilities(1);
+      });
+      document.getElementById('facilitySearch').addEventListener('keyup', (e) => {
+        if (e.key === 'Enter') {
+          currentSearch = e.target.value;
+          loadFacilities(1);
+        }
+      });
+      document.getElementById('facilitiesPrev').addEventListener('click', () => {
+        if (currentPage > 1) loadFacilities(currentPage - 1);
+      });
+      document.getElementById('facilitiesNext').addEventListener('click', () => {
+        if (currentPage < totalPages) loadFacilities(currentPage + 1);
+      });
 
       document.getElementById('facilityForm').addEventListener('submit', async (e) => {
         e.preventDefault();
