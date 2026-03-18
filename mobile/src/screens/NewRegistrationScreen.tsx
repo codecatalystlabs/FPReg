@@ -37,6 +37,21 @@ const schema = z.object({
   previous_method: z.string().optional(),
   is_switching: z.boolean().optional(),
   switching_reason: z.string().optional(),
+  pills_coc_cycles: z.number().min(0).max(3, 'CoCs max is 3 cycles'),
+  pills_pop_cycles: z.number().min(0).max(3, 'POP max is 3 cycles'),
+  pills_ecp_pieces: z.number().min(0).max(1, 'ECP max is 1'),
+  condoms_male_units: z.number().min(0).max(144, 'Male condoms max is 144'),
+  condoms_female_units: z.number().min(0),
+  injectable_dmpa_im_doses: z.number().min(0).max(1, 'DMPA-IM max is 1'),
+  injectable_dmpa_sc_pa_doses: z.number().min(0).max(4, 'DMPA-SC PA max is 4'),
+  injectable_dmpa_sc_si_doses: z.number().min(0).max(4, 'DMPA-SC SI max is 4'),
+  implant_3_years: z.boolean(),
+  implant_5_years: z.boolean(),
+  iud_copper_t: z.boolean(),
+  iud_hormonal_3_years: z.boolean(),
+  iud_hormonal_5_years: z.boolean(),
+  tubal_ligation: z.boolean(),
+  vasectomy: z.boolean(),
 }).refine((d) => d.is_new_user !== d.is_revisit, {
   message: 'Must be either new user or revisit',
   path: ['is_new_user'],
@@ -46,6 +61,12 @@ const schema = z.object({
 }).refine((d) => !d.is_switching || (d.switching_reason != null && d.switching_reason.trim().length > 0), {
   message: 'Reason for switching is required when switching method',
   path: ['switching_reason'],
+}).refine((d) => {
+  // Permanent methods max=1 (already enforced by UI but keep as validation)
+  return !(d.tubal_ligation && d.vasectomy);
+}, {
+  message: 'Only one permanent method is allowed',
+  path: ['tubal_ligation'],
 });
 
 type FormData = z.infer<typeof schema>;
@@ -132,6 +153,8 @@ export function NewRegistrationScreen() {
   const hasFam = !!(famSd || famLam || famTwo);
   const anyMethod = hasPills || hasCondoms || hasInjectables || hasImplant || hasIud || hasPermanent || hasFam;
 
+  const showSideEffects = watchSex === 'F' && (hasPills || hasInjectables || hasImplant || hasIud);
+
   const methodDisabled = {
     pills: anyMethod && !hasPills,
     condoms: anyMethod && !hasCondoms,
@@ -170,6 +193,13 @@ export function NewRegistrationScreen() {
     breastScreen: toOptions(sets.breast_cancer_screening || []),
     sideEffects: (sets.side_effect ?? sets.side_effects ?? []) as OptionSetItem[],
   }), [sets]);
+
+  // Clear side effects when not applicable
+  useEffect(() => {
+    if (!showSideEffects) {
+      setValue('side_effects', '');
+    }
+  }, [showSideEffects, setValue]);
 
   const onSubmit = async (data: RegistrationInput) => {
     setSubmitting(true);
@@ -305,36 +335,36 @@ export function NewRegistrationScreen() {
             <>
               <Text style={styles.subLabel}>Oral Pills (Cycles)</Text>
               <Controller control={control} name="pills_coc_cycles" render={({ field }) => (
-                <AppInput label="CoCs" value={String(field.value)} onChangeText={(v) => field.onChange(parseInt(v) || 0)} keyboardType="number-pad" disabled={methodDisabled.pills} />
+                <AppInput label="CoCs" value={String(field.value)} onChangeText={(v) => field.onChange(Math.min(3, Math.max(0, parseInt(v) || 0)))} keyboardType="number-pad" disabled={methodDisabled.pills} />
               )} />
               <Controller control={control} name="pills_pop_cycles" render={({ field }) => (
-                <AppInput label="POP" value={String(field.value)} onChangeText={(v) => field.onChange(parseInt(v) || 0)} keyboardType="number-pad" disabled={methodDisabled.pills} />
+                <AppInput label="POP" value={String(field.value)} onChangeText={(v) => field.onChange(Math.min(3, Math.max(0, parseInt(v) || 0)))} keyboardType="number-pad" disabled={methodDisabled.pills} />
               )} />
               <Controller control={control} name="pills_ecp_pieces" render={({ field }) => (
-                <AppInput label="ECP" value={String(field.value)} onChangeText={(v) => field.onChange(parseInt(v) || 0)} keyboardType="number-pad" disabled={methodDisabled.pills} />
+                <AppInput label="ECP" value={String(field.value)} onChangeText={(v) => field.onChange(Math.min(1, Math.max(0, parseInt(v) || 0)))} keyboardType="number-pad" disabled={methodDisabled.pills} />
               )} />
             </>
           )}
           <Text style={styles.subLabel}>Condoms (Pieces)</Text>
           <Controller control={control} name="condoms_male_units" render={({ field }) => (
-            <AppInput label="Male" value={String(field.value)} onChangeText={(v) => field.onChange(parseInt(v) || 0)} keyboardType="number-pad" disabled={methodDisabled.condoms} />
+            <AppInput label="Male" value={String(field.value)} onChangeText={(v) => field.onChange(Math.min(144, Math.max(0, parseInt(v) || 0)))} keyboardType="number-pad" disabled={methodDisabled.condoms} />
           )} />
           {watchSex !== 'M' && (
             <Controller control={control} name="condoms_female_units" render={({ field }) => (
-              <AppInput label="Female" value={String(field.value)} onChangeText={(v) => field.onChange(parseInt(v) || 0)} keyboardType="number-pad" disabled={methodDisabled.condoms} />
+              <AppInput label="Female" value={String(field.value)} onChangeText={(v) => field.onChange(Math.max(0, parseInt(v) || 0))} keyboardType="number-pad" disabled={methodDisabled.condoms} />
             )} />
           )}
           {watchSex !== 'M' && (
             <>
               <Text style={styles.subLabel}>Injectables (Doses) – select one only</Text>
               <Controller control={control} name="injectable_dmpa_im_doses" render={({ field }) => (
-                <AppInput label="DMPA-IM" value={String(field.value)} onChangeText={(v) => field.onChange(parseInt(v) || 0)} keyboardType="number-pad" disabled={methodDisabled.injectables || injectableDisabled.im} />
+                <AppInput label="DMPA-IM" value={String(field.value)} onChangeText={(v) => field.onChange(Math.min(1, Math.max(0, parseInt(v) || 0)))} keyboardType="number-pad" disabled={methodDisabled.injectables || injectableDisabled.im} />
               )} />
               <Controller control={control} name="injectable_dmpa_sc_pa_doses" render={({ field }) => (
-                <AppInput label="DMPA-SC PA" value={String(field.value)} onChangeText={(v) => field.onChange(parseInt(v) || 0)} keyboardType="number-pad" helpText="Provider Administered" disabled={methodDisabled.injectables || injectableDisabled.pa} />
+                <AppInput label="DMPA-SC PA" value={String(field.value)} onChangeText={(v) => field.onChange(Math.min(4, Math.max(0, parseInt(v) || 0)))} keyboardType="number-pad" helpText="Provider Administered" disabled={methodDisabled.injectables || injectableDisabled.pa} />
               )} />
               <Controller control={control} name="injectable_dmpa_sc_si_doses" render={({ field }) => (
-                <AppInput label="DMPA-SC SI" value={String(field.value)} onChangeText={(v) => field.onChange(parseInt(v) || 0)} keyboardType="number-pad" helpText="Self-Injected" disabled={methodDisabled.injectables || injectableDisabled.si} />
+                <AppInput label="DMPA-SC SI" value={String(field.value)} onChangeText={(v) => field.onChange(Math.min(4, Math.max(0, parseInt(v) || 0)))} keyboardType="number-pad" helpText="Self-Injected" disabled={methodDisabled.injectables || injectableDisabled.si} />
               )} />
               <Text style={styles.subLabel}>Implants – select one only</Text>
               <Controller control={control} name="implant_3_years" render={({ field }) => (<AppCheckbox label="Implant 3 Years" value={field.value} onChange={field.onChange} disabled={methodDisabled.implant || implantDisabled.three} />)} />
@@ -400,9 +430,10 @@ export function NewRegistrationScreen() {
         {/* Side Effects & Other Services */}
         <SectionHeader title="Side Effects & Services" icon="alert-circle" subtitle="Columns 23–25" />
         <View style={styles.section}>
-          <Text style={styles.subLabel}>Side Effects</Text>
+          {showSideEffects && <Text style={styles.subLabel}>Side Effects</Text>}
+          {showSideEffects && (
           <Controller control={control} name="side_effects" render={({ field }) => {
-            const selected = field.value ? field.value.split(',').filter(Boolean) : [];
+            const selected = field.value ? field.value.split(',').filter(Boolean) : [];                                                                                                                     
             const list = opts.sideEffects ?? [];
             const items = list.map((se, idx) => {
               const item = (se as unknown) as Record<string, unknown>;
@@ -411,12 +442,19 @@ export function NewRegistrationScreen() {
               const label = rawLabel ? (code ? `${code} – ${rawLabel}` : rawLabel) : (code || `Option ${idx + 1}`);
               return { code, label, idx };
             }).filter((x) => x.code.length > 0);
+
+            const allowed = new Set(['IB','HB','NB','NV','HE','MO','BR','WG','SP','AC','ETC']);
+            if (hasIud) { allowed.add('CR'); allowed.add('SAP'); }
+            if (hasInjectables) allowed.add('ISR');
+            if (hasImplant) allowed.add('INSR');
+            const filtered = items.filter((x) => allowed.has(x.code));
+
             return (
               <View style={styles.sideEffectsGrid}>
-                {items.length === 0 ? (
+                {filtered.length === 0 ? (
                   <Text style={styles.helperText}>No side effect options loaded. Check connection or try again later.</Text>
                 ) : (
-                  items.map(({ code, label, idx }) => (
+                  filtered.map(({ code, label, idx }) => (
                     <View key={`${code}-${idx}`} style={styles.sideEffectItem}>
                       <AppCheckbox
                         compact
@@ -433,6 +471,7 @@ export function NewRegistrationScreen() {
               </View>
             );
           }} />
+          )}
           {watchSex === 'F' && (
             <>
               <Controller control={control} name="cervical_screening_method" render={({ field }) => (

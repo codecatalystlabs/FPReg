@@ -53,6 +53,7 @@ func main() {
 	clientNumberRepo := repository.NewClientNumberRepository(db)
 	registrationRepo := repository.NewRegistrationRepository(db)
 	auditRepo := repository.NewAuditRepository(db)
+	dhisRepo := repository.NewDHIS2Repository(db)
 
 	// Services
 	auditSvc := service.NewAuditService(auditRepo)
@@ -60,6 +61,8 @@ func main() {
 	userSvc := service.NewUserService(userRepo, auditSvc)
 	facilitySvc := service.NewFacilityService(facilityRepo, auditSvc)
 	registrationSvc := service.NewRegistrationService(registrationRepo, clientNumberRepo, facilityRepo, auditSvc)
+	fpReportSvc := service.NewFPReportService(registrationRepo, facilityRepo)
+	dhisSyncSvc := service.NewDHIS2SyncService(cfg, fpReportSvc, facilityRepo, dhisRepo)
 
 	// Handlers
 	authHandler := handler.NewAuthHandler(authSvc, auditSvc)
@@ -68,6 +71,7 @@ func main() {
 	optionSetHandler := handler.NewOptionSetHandler(optionSetRepo)
 	registrationHandler := handler.NewRegistrationHandler(registrationSvc)
 	auditHandler := handler.NewAuditHandler(auditSvc)
+	fpReportHandler := handler.NewFPReportHandler(fpReportSvc, facilityRepo, dhisRepo, dhisSyncSvc)
 
 	r := gin.Default()
 	r.Use(middleware.CORS())
@@ -79,6 +83,7 @@ func main() {
 		OptionSet:    optionSetHandler,
 		Registration: registrationHandler,
 		Audit:        auditHandler,
+		FPReport:     fpReportHandler,
 	}, authSvc, auditSvc, cfg)
 
 	port := cfg.AppPort

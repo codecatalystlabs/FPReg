@@ -23,6 +23,7 @@ type Handlers struct {
 	OptionSet    *handler.OptionSetHandler
 	Registration *handler.RegistrationHandler
 	Audit        *handler.AuditHandler
+	FPReport     *handler.FPReportHandler
 }
 
 func Setup(r *gin.Engine, h Handlers, authSvc *service.AuthService, auditSvc *service.AuditService, cfg *config.Config) {
@@ -49,6 +50,7 @@ func Setup(r *gin.Engine, h Handlers, authSvc *service.AuthService, auditSvc *se
 		base.GET("/admin/users", func(c *gin.Context) { c.HTML(http.StatusOK, "users.html", tplData) })
 		base.GET("/admin/facilities", func(c *gin.Context) { c.HTML(http.StatusOK, "facilities.html", tplData) })
 		base.GET("/admin/audit-logs", func(c *gin.Context) { c.HTML(http.StatusOK, "audit_logs.html", tplData) })
+		base.GET("/reports/fp-monthly", func(c *gin.Context) { c.HTML(http.StatusOK, "fp_monthly_report.html", tplData) })
 	} else {
 		log.Println("Web templates not found, running in API-only mode")
 	}
@@ -131,5 +133,15 @@ func Setup(r *gin.Engine, h Handlers, authSvc *service.AuthService, auditSvc *se
 	auditLogs.Use(middleware.RoleRequired(models.RoleSuperAdmin, models.RoleFacilityAdmin))
 	{
 		auditLogs.GET("", h.Audit.List)
+	}
+
+	// FP Monthly Reports (superadmin / facility_admin / district_biostatistician)
+	reports := api.Group("/reports/family-planning")
+	reports.Use(middleware.AuthRequired(authSvc))
+	reports.Use(middleware.RoleRequired(models.RoleSuperAdmin, models.RoleFacilityAdmin, models.RoleReviewer))
+	{
+		reports.GET("/monthly", h.FPReport.Monthly)
+		reports.GET("/payload-preview", h.FPReport.PayloadPreview)
+		reports.POST("/sync", h.FPReport.Sync)
 	}
 }

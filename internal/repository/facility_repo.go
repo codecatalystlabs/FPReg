@@ -25,6 +25,15 @@ func (r *FacilityRepository) FindByID(id uuid.UUID) (*models.Facility, error) {
 	return &f, err
 }
 
+func (r *FacilityRepository) FindByIDs(ids []uuid.UUID) ([]models.Facility, error) {
+	var items []models.Facility
+	if len(ids) == 0 {
+		return items, nil
+	}
+	err := r.db.Where("id IN ?", ids).Find(&items).Error
+	return items, err
+}
+
 func (r *FacilityRepository) FindByCode(code string) (*models.Facility, error) {
 	var f models.Facility
 	err := r.db.First(&f, "code = ?", code).Error

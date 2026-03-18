@@ -19,6 +19,12 @@ func Migrate(db *gorm.DB) {
 		&models.ClientNumberSeq{},
 		&models.FPRegistration{},
 		&models.AuditLog{},
+		&models.DHIS2MappingItem{},
+		&models.DHIS2SyncSetting{},
+		&models.OrgUnitMapping{},
+		&models.ReportSyncLog{},
+		&models.ReportCellSyncStatus{},
+		&models.AggregationExclusionLog{},
 	)
 	if err != nil {
 		log.Fatalf("Migration failed: %v", err)

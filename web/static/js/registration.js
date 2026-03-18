@@ -276,7 +276,28 @@ function setupSkipLogic() {
     });
   }
 
+  function clampNumberInput(id, maxVal) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const v = parseInt(el.value, 10);
+    const next = isNaN(v) ? 0 : v;
+    if (next < 0) el.value = '0';
+    else if (typeof maxVal === 'number' && next > maxVal) el.value = String(maxVal);
+  }
+
+  function enforceMaxes() {
+    clampNumberInput('pills_coc_cycles', 3);
+    clampNumberInput('pills_pop_cycles', 3);
+    clampNumberInput('pills_ecp_pieces', 1);
+    clampNumberInput('condoms_male_units', 144);
+    // female condoms: no max
+    clampNumberInput('injectable_dmpa_im_doses', 1);
+    clampNumberInput('injectable_dmpa_sc_pa_doses', 4);
+    clampNumberInput('injectable_dmpa_sc_si_doses', 4);
+  }
+
   function updateMethodGroups() {
+    enforceMaxes();
     const pillsVal = pillIds.some(id => getInt(id) > 0);
     const condomsVal = condomIds.some(id => getInt(id) > 0);
     const injIm = getInt('injectable_dmpa_im_doses');
@@ -306,6 +327,36 @@ function setupSkipLogic() {
       setDisabled(['injectable_dmpa_sc_si_doses'], injectablesVal && injSi === 0);
     } else {
       setDisabled(injectableIds, false);
+    }
+
+    // Side effects visibility and filtering: only show when applicable and
+    // show method-specific codes based on selected method type.
+    const sideEffectsSection = document.getElementById('side_effects_group')?.closest('.form-section');
+    const sexVal = document.getElementById('sex')?.value || '';
+    const showSideEffects =
+      sexVal === 'F' && (pillsVal || injectablesVal || implantVal || iudVal);
+
+    if (sideEffectsSection) {
+      if (!showSideEffects) {
+        sideEffectsSection.classList.add('skip-hidden');
+        document.querySelectorAll('.side-effect-check').forEach(cb => { cb.checked = false; cb.disabled = false; });
+      } else {
+        sideEffectsSection.classList.remove('skip-hidden');
+
+        const allowed = new Set(['IB','HB','NB','NV','HE','MO','BR','WG','SP','AC','ETC']);
+        if (iudVal) { allowed.add('CR'); allowed.add('SAP'); }
+        if (injectablesVal) allowed.add('ISR');
+        if (implantVal) allowed.add('INSR');
+
+        document.querySelectorAll('.side-effect-check').forEach(cb => {
+          const code = cb.value;
+          const wrapper = cb.closest('.form-check');
+          const ok = allowed.has(code);
+          cb.disabled = !ok;
+          if (!ok) cb.checked = false;
+          if (wrapper) wrapper.style.display = ok ? 'inline-flex' : 'none';
+        });
+      }
     }
   }
 
