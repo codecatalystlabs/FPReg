@@ -33,8 +33,12 @@ export const registrationsApi = {
     return data.data!;
   },
 
-  async create(input: RegistrationInput): Promise<FPRegistration> {
-    const { data } = await api.post<ApiResponse<FPRegistration>>('/registrations', input);
+  async create(input: RegistrationInput, opts?: { facilityId?: string }): Promise<FPRegistration> {
+    const params =
+      opts?.facilityId != null && opts.facilityId !== ''
+        ? { facility_id: opts.facilityId }
+        : undefined;
+    const { data } = await api.post<ApiResponse<FPRegistration>>('/registrations', input, { params });
     return data.data!;
   },
 

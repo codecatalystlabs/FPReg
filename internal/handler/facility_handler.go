@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"fpreg/internal/middleware"
+	"fpreg/internal/models"
 	"fpreg/internal/service"
 	"fpreg/internal/utils"
 
@@ -57,9 +58,26 @@ func (h *FacilityHandler) Create(c *gin.Context) {
 // @Success      200  {object} utils.APIResponse
 // @Router       /api/v1/facilities [get]
 func (h *FacilityHandler) List(c *gin.Context) {
-	page, perPage := utils.GetPagination(c)
+	// Allow large per_page for admin/dropdown use (default remains 25).
+	page, perPage := utils.GetPaginationOrMax(c, 25, 10000)
 	search := c.Query("search")
-	items, total, err := h.facilitySvc.List(page, perPage, search)
+
+	var items []models.Facility
+	var total int64
+	var err error
+
+	roleVal, _ := c.Get("user_role")
+	role, _ := roleVal.(models.Role)
+	if role == models.RoleDistrictBiostatistician {
+		d := middleware.GetUserDistrict(c)
+		if d == "" {
+			utils.RespondError(c, http.StatusForbidden, "No district assigned to your account")
+			return
+		}
+		items, total, err = h.facilitySvc.ListByDistrict(page, perPage, d, search)
+	} else {
+		items, total, err = h.facilitySvc.List(page, perPage, search)
+	}
 	if err != nil {
 		utils.RespondError(c, http.StatusInternalServerError, "Failed to list facilities")
 		return
@@ -68,6 +86,23 @@ func (h *FacilityHandler) List(c *gin.Context) {
 		Page: page, PerPage: perPage, Total: total,
 		TotalPages: utils.CalcTotalPages(total, perPage),
 	})
+}
+
+// ListDistricts godoc
+// @Summary      List distinct facility districts
+// @Description  District values from the facilities table (for assigning district biostatisticians).
+// @Tags         facilities
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object} utils.APIResponse
+// @Router       /api/v1/facilities/districts [get]
+func (h *FacilityHandler) ListDistricts(c *gin.Context) {
+	names, err := h.facilitySvc.ListDistinctDistricts()
+	if err != nil {
+		utils.RespondError(c, http.StatusInternalServerError, "Failed to list districts")
+		return
+	}
+	utils.RespondOK(c, names)
 }
 
 // GetFacility godoc

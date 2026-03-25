@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -47,6 +48,11 @@ export function LoginScreen() {
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
         >
+          <Image
+            source={require('../../assets/branding/moh_header.png')}
+            resizeMode="contain"
+            style={styles.mohHeader}
+          />
           <View style={styles.header}>
             <Ionicons name="heart-half" size={48} color={colors.textInverse} />
             <Text style={styles.brandTitle}>FP Register</Text>
@@ -106,6 +112,11 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
     padding: spacing.xxl,
+  },
+  mohHeader: {
+    width: '100%',
+    height: 34,
+    marginBottom: spacing.xl,
   },
   header: {
     alignItems: 'center',

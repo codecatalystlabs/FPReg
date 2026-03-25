@@ -100,7 +100,7 @@ func classifyAge(age int) string {
 	switch {
 	case age < 15:
 		return "BELOW_15"
-	case age >= 16 && age <= 19:
+	case age >= 15 && age <= 19:
 		return "16_19"
 	case age >= 20 && age <= 24:
 		return "20_24"
@@ -199,10 +199,11 @@ func ParseLocalIndicatorKey(key string) (methodCode, visitType, ageGroup string)
 	if len(parts) < 3 {
 		return key, "", ""
 	}
-	if parts[0] == "FP05" && len(parts) == 4 {
+	// FP05_PA / FP05_SI subgroup: FP05_PA_NEW_25_49 → 5+ segments
+	if len(parts) >= 5 && parts[0] == "FP05" && (parts[1] == "PA" || parts[1] == "SI") {
 		methodCode = parts[0] + "_" + parts[1]
 		visitType = parts[2]
-		ageGroup = parts[3]
+		ageGroup = strings.Join(parts[3:], "_")
 		return
 	}
 	methodCode = parts[0]

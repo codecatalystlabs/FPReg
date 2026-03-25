@@ -34,6 +34,7 @@ type AccessClaims struct {
 	Email      string      `json:"email"`
 	Role       models.Role `json:"role"`
 	FacilityID *uuid.UUID  `json:"facility_id,omitempty"`
+	District   string      `json:"district,omitempty"` // for district_biostatistician
 	jwt.RegisteredClaims
 }
 
@@ -129,6 +130,7 @@ func (s *AuthService) generateTokenPair(user *models.User, ip, ua string) (*Toke
 		Email:      user.Email,
 		Role:       user.Role,
 		FacilityID: user.FacilityID,
+		District:   user.District,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(accessExp),
 			IssuedAt:  jwt.NewNumericDate(now),

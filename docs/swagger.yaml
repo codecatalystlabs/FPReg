@@ -1,5 +1,44 @@
+basePath: /
 definitions:
-  fpreg_internal_service.CreateFacilityInput:
+  handler.ChangePasswordRequest:
+    properties:
+      current_password:
+        type: string
+      new_password:
+        type: string
+    required:
+    - current_password
+    - new_password
+    type: object
+  handler.FPReportSyncRequest:
+    properties:
+      facility_ids:
+        items:
+          type: string
+        type: array
+      force:
+        type: boolean
+      period:
+        type: string
+    type: object
+  handler.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  handler.RefreshRequest:
+    properties:
+      refresh_token:
+        type: string
+    required:
+    - refresh_token
+    type: object
+  service.CreateFacilityInput:
     properties:
       client_code_prefix:
         type: string
@@ -16,7 +55,7 @@ definitions:
       subcounty:
         type: string
     type: object
-  fpreg_internal_service.CreateRegistrationInput:
+  service.CreateRegistrationInput:
     properties:
       age:
         type: integer
@@ -133,7 +172,7 @@ definitions:
       visit_date:
         type: string
     type: object
-  fpreg_internal_service.CreateUserInput:
+  service.CreateUserInput:
     properties:
       email:
         type: string
@@ -146,35 +185,35 @@ definitions:
       role:
         type: string
     type: object
-  fpreg_internal_utils.APIError:
+  utils.APIError:
     properties:
       errors:
         items:
-          $ref: '#/definitions/fpreg_internal_utils.ErrorDetail'
+          $ref: '#/definitions/utils.ErrorDetail'
         type: array
       message:
         type: string
       success:
         type: boolean
     type: object
-  fpreg_internal_utils.APIResponse:
+  utils.APIResponse:
     properties:
       data: {}
       message:
         type: string
       meta:
-        $ref: '#/definitions/fpreg_internal_utils.Meta'
+        $ref: '#/definitions/utils.Meta'
       success:
         type: boolean
     type: object
-  fpreg_internal_utils.ErrorDetail:
+  utils.ErrorDetail:
     properties:
       field:
         type: string
       message:
         type: string
     type: object
-  fpreg_internal_utils.Meta:
+  utils.Meta:
     properties:
       page:
         type: integer
@@ -185,25 +224,11 @@ definitions:
       total_pages:
         type: integer
     type: object
-  internal_handler.LoginRequest:
-    properties:
-      email:
-        type: string
-      password:
-        type: string
-    required:
-    - email
-    - password
-    type: object
-  internal_handler.RefreshRequest:
-    properties:
-      refresh_token:
-        type: string
-    required:
-    - refresh_token
-    type: object
 info:
   contact: {}
+  description: Uganda MoH HMIS MCH 007 Integrated Family Planning Register
+  title: HMIS MCH 007 – Integrated FP Register API
+  version: "1.0"
 paths:
   /api/v1/audit-logs:
     get:
@@ -242,12 +267,36 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+            $ref: '#/definitions/utils.APIResponse'
       security:
       - BearerAuth: []
       summary: List audit logs (admin only)
       tags:
       - audit
+  /api/v1/auth/change-password:
+    post:
+      consumes:
+      - application/json
+      description: Allows the currently authenticated user to change their password
+      parameters:
+      - description: Password change payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ChangePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Change own password
+      tags:
+      - auth
   /api/v1/auth/login:
     post:
       consumes:
@@ -259,18 +308,18 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handler.LoginRequest'
+          $ref: '#/definitions/handler.LoginRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+            $ref: '#/definitions/utils.APIResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/fpreg_internal_utils.APIError'
+            $ref: '#/definitions/utils.APIError'
       summary: Log in
       tags:
       - auth
@@ -285,14 +334,14 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handler.RefreshRequest'
+          $ref: '#/definitions/handler.RefreshRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+            $ref: '#/definitions/utils.APIResponse'
       summary: Log out
       tags:
       - auth
@@ -305,7 +354,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+            $ref: '#/definitions/utils.APIResponse'
       security:
       - BearerAuth: []
       summary: Get current user
@@ -322,18 +371,18 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handler.RefreshRequest'
+          $ref: '#/definitions/handler.RefreshRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+            $ref: '#/definitions/utils.APIResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/fpreg_internal_utils.APIError'
+            $ref: '#/definitions/utils.APIError'
       summary: Refresh tokens
       tags:
       - auth
@@ -348,13 +397,17 @@ paths:
         in: query
         name: per_page
         type: integer
+      - description: Search by name, code, district, or subcounty
+        in: query
+        name: search
+        type: string
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+            $ref: '#/definitions/utils.APIResponse'
       security:
       - BearerAuth: []
       summary: List facilities
@@ -369,14 +422,14 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/fpreg_internal_service.CreateFacilityInput'
+          $ref: '#/definitions/service.CreateFacilityInput'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+            $ref: '#/definitions/utils.APIResponse'
       security:
       - BearerAuth: []
       summary: Create a facility
@@ -396,7 +449,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+            $ref: '#/definitions/utils.APIResponse'
       security:
       - BearerAuth: []
       summary: Delete facility
@@ -415,7 +468,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+            $ref: '#/definitions/utils.APIResponse'
       security:
       - BearerAuth: []
       summary: Get facility by ID
@@ -435,14 +488,14 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/fpreg_internal_service.CreateFacilityInput'
+          $ref: '#/definitions/service.CreateFacilityInput'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+            $ref: '#/definitions/utils.APIResponse'
       security:
       - BearerAuth: []
       summary: Update facility
@@ -456,7 +509,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+            $ref: '#/definitions/utils.APIResponse'
       security:
       - BearerAuth: []
       summary: List all option sets grouped by category
@@ -476,7 +529,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+            $ref: '#/definitions/utils.APIResponse'
       security:
       - BearerAuth: []
       summary: List option sets by category
@@ -490,7 +543,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+            $ref: '#/definitions/utils.APIResponse'
       security:
       - BearerAuth: []
       summary: List all option set category names
@@ -533,7 +586,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+            $ref: '#/definitions/utils.APIResponse'
       security:
       - BearerAuth: []
       summary: List FP register entries
@@ -548,18 +601,18 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/fpreg_internal_service.CreateRegistrationInput'
+          $ref: '#/definitions/service.CreateRegistrationInput'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+            $ref: '#/definitions/utils.APIResponse'
         "422":
           description: Unprocessable Entity
           schema:
-            $ref: '#/definitions/fpreg_internal_utils.APIError'
+            $ref: '#/definitions/utils.APIError'
       security:
       - BearerAuth: []
       summary: Create a new FP register entry
@@ -579,7 +632,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+            $ref: '#/definitions/utils.APIResponse'
       security:
       - BearerAuth: []
       summary: Soft-delete an FP register entry
@@ -598,7 +651,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+            $ref: '#/definitions/utils.APIResponse'
       security:
       - BearerAuth: []
       summary: Get a single FP register entry
@@ -618,19 +671,90 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/fpreg_internal_service.CreateRegistrationInput'
+          $ref: '#/definitions/service.CreateRegistrationInput'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+            $ref: '#/definitions/utils.APIResponse'
       security:
       - BearerAuth: []
       summary: Update an FP register entry
       tags:
       - registrations
+  /api/v1/reports/family-planning/monthly:
+    get:
+      parameters:
+      - description: Period in YYYYMM format
+        in: query
+        name: period
+        required: true
+        type: string
+      - description: Facility ID
+        in: query
+        name: facility_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Monthly FP methods report
+      tags:
+      - reports
+  /api/v1/reports/family-planning/payload-preview:
+    get:
+      parameters:
+      - description: Period in YYYYMM format
+        in: query
+        name: period
+        required: true
+        type: string
+      - description: Facility ID
+        in: query
+        name: facility_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Preview DHIS2 payload for monthly FP report
+      tags:
+      - reports
+  /api/v1/reports/family-planning/sync:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Sync payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.FPReportSyncRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Sync monthly FP report to DHIS2
+      tags:
+      - reports
   /api/v1/users:
     get:
       parameters:
@@ -652,7 +776,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+            $ref: '#/definitions/utils.APIResponse'
       security:
       - BearerAuth: []
       summary: List users
@@ -667,18 +791,18 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/fpreg_internal_service.CreateUserInput'
+          $ref: '#/definitions/service.CreateUserInput'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+            $ref: '#/definitions/utils.APIResponse'
         "422":
           description: Unprocessable Entity
           schema:
-            $ref: '#/definitions/fpreg_internal_utils.APIError'
+            $ref: '#/definitions/utils.APIError'
       security:
       - BearerAuth: []
       summary: Create a user
@@ -698,7 +822,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+            $ref: '#/definitions/utils.APIResponse'
       security:
       - BearerAuth: []
       summary: Get user by ID
@@ -718,14 +842,14 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/fpreg_internal_service.CreateUserInput'
+          $ref: '#/definitions/service.CreateUserInput'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+            $ref: '#/definitions/utils.APIResponse'
       security:
       - BearerAuth: []
       summary: Update user
@@ -745,10 +869,37 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/fpreg_internal_utils.APIResponse'
+            $ref: '#/definitions/utils.APIResponse'
       security:
       - BearerAuth: []
       summary: Deactivate user
       tags:
       - users
+  /api/v1/users/import:
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: 'CSV file with columns: full_name,email,password,role,facility_id'
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Bulk import users from CSV
+      tags:
+      - users
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"

@@ -2,6 +2,7 @@ package repository
 
 import (
 	"errors"
+	"strings"
 
 	"fpreg/internal/models"
 
@@ -41,7 +42,9 @@ func (r *DHIS2Repository) UpsertMappingItem(item *models.DHIS2MappingItem) error
 		return errors.New("local_indicator_key is required")
 	}
 	var existing models.DHIS2MappingItem
-	err := r.db.First(&existing, "local_indicator_key = ?", item.LocalIndicatorKey).Error
+	err := r.db.Where("local_indicator_key = ?", item.LocalIndicatorKey).
+		Order("updated_at DESC NULLS LAST, created_at DESC NULLS LAST, id ASC").
+		First(&existing).Error
 	if err == nil {
 		item.ID = existing.ID
 		return r.db.Save(item).Error
@@ -54,8 +57,84 @@ func (r *DHIS2Repository) UpsertMappingItem(item *models.DHIS2MappingItem) error
 
 func (r *DHIS2Repository) FindMappingByLocalKey(key string) (*models.DHIS2MappingItem, error) {
 	var item models.DHIS2MappingItem
-	err := r.db.First(&item, "local_indicator_key = ? AND active = true", key).Error
-	return &item, err
+	// Usable for sync when both DHIS2 UIDs are set (active flag optional once configured).
+	err := r.db.Where("local_indicator_key = ?", key).
+		Where("TRIM(COALESCE(dhis2_data_element_uid, '')) <> ''").
+		Where("TRIM(COALESCE(dhis2_cat_option_combo_uid, '')) <> ''").
+		Order("updated_at DESC NULLS LAST, created_at DESC NULLS LAST, id ASC").
+		First(&item).Error
+	if err != nil {
+		return nil, err
+	}
+	return &item, nil
+}
+
+// SeedFPIndicatorMappingStubs inserts template rows for keys that do not exist yet (inactive, empty DHIS2 UIDs).
+func (r *DHIS2Repository) SeedFPIndicatorMappingStubs(stubs []models.DHIS2MappingItem) (inserted int, err error) {
+	for i := range stubs {
+		s := &stubs[i]
+		var n int64
+		if err := r.db.Model(&models.DHIS2MappingItem{}).Where("local_indicator_key = ?", s.LocalIndicatorKey).Count(&n).Error; err != nil {
+			return inserted, err
+		}
+		if n > 0 {
+			continue
+		}
+		if err := r.db.Create(s).Error; err != nil {
+			return inserted, err
+		}
+		inserted++
+	}
+	return inserted, nil
+}
+
+// SyncOrgUnitMappingsFromFacilities upserts one row per facility that has a non-empty uid
+// (DHIS2 org unit). Matches: local_facility_id = facilities.id, local_facility_name = name,
+// dhis2 org unit = facilities.uid.
+func (r *DHIS2Repository) SyncOrgUnitMappingsFromFacilities() (int, error) {
+	var facs []models.Facility
+	if err := r.db.Order("name").Find(&facs).Error; err != nil {
+		return 0, err
+	}
+	n := 0
+	for _, f := range facs {
+		uid := strings.TrimSpace(f.UID)
+		if uid == "" {
+			continue
+		}
+		var existing models.OrgUnitMapping
+		err := r.db.Where("local_facility_id = ?", f.ID).First(&existing).Error
+		m := models.OrgUnitMapping{
+			LocalFacilityID:   f.ID,
+			LocalFacilityName: f.Name,
+			DHIS2OrgUnitUID:   uid,
+			Active:            true,
+		}
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			if err := r.db.Create(&m).Error; err != nil {
+				return n, err
+			}
+		} else if err != nil {
+			return n, err
+		} else {
+			m.ID = existing.ID
+			if err := r.db.Save(&m).Error; err != nil {
+				return n, err
+			}
+		}
+		n++
+	}
+	return n, nil
+}
+
+// FindOrgUnitMappingByFacilityID returns the active mapping for a local facility, if any.
+func (r *DHIS2Repository) FindOrgUnitMappingByFacilityID(facilityID uuid.UUID) (*models.OrgUnitMapping, error) {
+	var m models.OrgUnitMapping
+	err := r.db.Where("local_facility_id = ? AND active = ?", facilityID, true).First(&m).Error
+	if err != nil {
+		return nil, err
+	}
+	return &m, nil
 }
 
 func (r *DHIS2Repository) ListMappings(page, perPage int, search string) ([]models.DHIS2MappingItem, int64, error) {
@@ -123,4 +202,3 @@ func (r *DHIS2Repository) UpsertCellStatus(s *models.ReportCellSyncStatus) error
 func (r *DHIS2Repository) CreateExclusion(log *models.AggregationExclusionLog) error {
 	return r.db.Create(log).Error
 }
-

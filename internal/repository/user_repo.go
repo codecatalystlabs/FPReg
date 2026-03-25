@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"strings"
+
 	"fpreg/internal/models"
 
 	"github.com/google/uuid"
@@ -39,12 +41,21 @@ func (r *UserRepository) Delete(id uuid.UUID) error {
 	return r.db.Delete(&models.User{}, "id = ?", id).Error
 }
 
-func (r *UserRepository) List(page, perPage int, facilityID *uuid.UUID) ([]models.User, int64, error) {
+// List returns users. If facilityID is set, filter by that facility only.
+// If districtScope is non-empty, return users whose facility is in that district, or district_biostatisticians assigned to that district.
+func (r *UserRepository) List(page, perPage int, facilityID *uuid.UUID, districtScope string) ([]models.User, int64, error) {
 	var users []models.User
 	var total int64
 	q := r.db.Model(&models.User{})
 	if facilityID != nil {
 		q = q.Where("facility_id = ?", *facilityID)
+	} else if strings.TrimSpace(districtScope) != "" {
+		d := strings.TrimSpace(districtScope)
+		sub := r.db.Model(&models.Facility{}).Select("id").Where("LOWER(TRIM(district)) = LOWER(?)", d)
+		q = q.Where(
+			r.db.Where("facility_id IN (?)", sub).
+				Or("(role = ? AND LOWER(TRIM(district)) = LOWER(?))", models.RoleDistrictBiostatistician, d),
+		)
 	}
 	q.Count(&total)
 	err := q.Preload("Facility").

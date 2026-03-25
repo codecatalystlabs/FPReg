@@ -11,10 +11,39 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   populateSelects(optionSets);
+  await setupDistrictFacilityPicker();
   setupSkipLogic();
   setupFormSubmission();
   setDefaults();
 });
+
+async function setupDistrictFacilityPicker() {
+  const u = App.user;
+  if (!u || u.role !== 'district_biostatistician') return;
+  const sec = document.getElementById('district_entry_facility_section');
+  const sel = document.getElementById('entry_facility_id');
+  if (!sec || !sel) return;
+  sec.classList.remove('d-none');
+  sel.required = true;
+  try {
+    let page = 1;
+    let totalPages = 1;
+    do {
+      const data = await App.api('GET', `/facilities?page=${page}&per_page=100`);
+      const list = data.data || [];
+      list.forEach((f) => {
+        const opt = document.createElement('option');
+        opt.value = f.id;
+        opt.textContent = `${f.name} (${f.code})`;
+        sel.appendChild(opt);
+      });
+      totalPages = (data.meta && data.meta.total_pages) || 1;
+      page += 1;
+    } while (page <= totalPages);
+  } catch (e) {
+    App.showToast('Failed to load facilities for your district', 'error');
+  }
+}
 
 function setDefaults() {
   const today = new Date().toISOString().split('T')[0];
@@ -37,6 +66,7 @@ function populateSelects(opts) {
   populateSelect('cervical_cancer_treatment', opts.cervical_cancer_treatment);
   populateSelect('breast_cancer_screening', opts.breast_cancer_screening);
 
+  // Side effects: render as radio-like single-select
   populateCheckboxGroup('side_effects_group', opts.side_effect);
 }
 
@@ -131,6 +161,8 @@ function setupSkipLogic() {
       implantTimingGroup?.classList.remove('skip-hidden');
     } else {
       implantTimingGroup?.classList.add('skip-hidden');
+      const it = document.getElementById('implant_removal_timing');
+      if (it) it.value = '';
     }
   }
   if (implantReason) implantReason.addEventListener('change', toggleImplantTiming);
@@ -143,10 +175,56 @@ function setupSkipLogic() {
       iudTimingGroup?.classList.remove('skip-hidden');
     } else {
       iudTimingGroup?.classList.add('skip-hidden');
+      const it = document.getElementById('iud_removal_timing');
+      if (it) it.value = '';
     }
   }
   if (iudReason) iudReason.addEventListener('change', toggleIUDTiming);
   toggleIUDTiming();
+
+  // LARC mutual exclusion: only one of implant or IUD removal can be selected.
+  function enforceLarcMutualExclusion() {
+    const hasImpl = implantReason && implantReason.value;
+    const hasIud = iudReason && iudReason.value;
+
+    if (implantReason && iudReason) {
+      iudReason.disabled = !!hasImpl;
+      implantReason.disabled = !!hasIud;
+
+      if (hasImpl) {
+        iudReason.value = '';
+        const it = document.getElementById('iud_removal_timing');
+        if (it) it.value = '';
+      }
+      if (hasIud) {
+        implantReason.value = '';
+        const it = document.getElementById('implant_removal_timing');
+        if (it) it.value = '';
+      }
+    }
+
+    toggleImplantTiming();
+    toggleIUDTiming();
+  }
+
+  if (implantReason) implantReason.addEventListener('change', enforceLarcMutualExclusion);
+  if (iudReason) iudReason.addEventListener('change', enforceLarcMutualExclusion);
+  enforceLarcMutualExclusion();
+
+  // Post-pregnancy timings: enforce either postpartum OR post-abortion, not both
+  const ppTiming = document.getElementById('postpartum_fp_timing');
+  const paTiming = document.getElementById('post_abortion_fp_timing');
+  function enforcePostPregExclusion(changed) {
+    if (!ppTiming || !paTiming) return;
+    if (changed === 'pp' && ppTiming.value) {
+      paTiming.value = '';
+    }
+    if (changed === 'pa' && paTiming.value) {
+      ppTiming.value = '';
+    }
+  }
+  if (ppTiming) ppTiming.addEventListener('change', () => enforcePostPregExclusion('pp'));
+  if (paTiming) paTiming.addEventListener('change', () => enforcePostPregExclusion('pa'));
 
   // Sex-specific fields: vasectomy only for M, tubal ligation only for F
   const sex = document.getElementById('sex');
@@ -241,6 +319,18 @@ function setupSkipLogic() {
 
     if (typeof updateMethodGroups === 'function') {
       updateMethodGroups();
+    }
+
+    // Age constraints: min 10 always; max 49 for females
+    const ageEl = document.getElementById('age');
+    if (ageEl) {
+      ageEl.min = '10';
+      ageEl.max = val === 'F' ? '49' : '120';
+      const v = parseInt(ageEl.value, 10);
+      if (!isNaN(v)) {
+        if (val === 'F' && v > 49) ageEl.value = '49';
+        if (val === 'M' && v > 120) ageEl.value = '120';
+      }
     }
   }
   if (sex) sex.addEventListener('change', toggleSexFields);
@@ -427,10 +517,12 @@ function collectFormData() {
     return null;
   };
 
-  const sideEffects = [];
-  document.querySelectorAll('.side-effect-check:checked').forEach(cb => {
-    sideEffects.push(cb.value);
-  });
+  // Side effects: single choice only, even though UI uses checkbox styling.
+  let sideEffectsValue = '';
+  const sideChecked = document.querySelector('.side-effect-check:checked');
+  if (sideChecked) {
+    sideEffectsValue = sideChecked.value;
+  }
 
   return {
     visit_date: getVal('visit_date'),
@@ -481,7 +573,7 @@ function collectFormData() {
     implant_removal_timing: getVal('implant_removal_timing'),
     iud_removal_reason: getVal('iud_removal_reason'),
     iud_removal_timing: getVal('iud_removal_timing'),
-    side_effects: sideEffects.join(','),
+    side_effects: sideEffectsValue,
     cervical_screening_method: getVal('cervical_screening_method'),
     cervical_cancer_status: getVal('cervical_cancer_status'),
     cervical_cancer_treatment: getVal('cervical_cancer_treatment'),
@@ -507,7 +599,16 @@ function setupFormSubmission() {
 
     try {
       const payload = collectFormData();
-      const data = await App.api('POST', '/registrations', payload);
+      let path = '/registrations';
+      if (App.user && App.user.role === 'district_biostatistician') {
+        const fid = document.getElementById('entry_facility_id')?.value;
+        if (!fid) {
+          App.showToast('Please select the reporting facility', 'error');
+          return;
+        }
+        path = '/registrations?facility_id=' + encodeURIComponent(fid);
+      }
+      const data = await App.api('POST', path, payload);
       App.showToast('Registration saved successfully! Client #: ' + (data.data.client_number || 'Visitor'), 'success');
       form.reset();
       setDefaults();

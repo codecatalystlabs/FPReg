@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"strings"
+
 	"fpreg/internal/models"
 
 	"github.com/google/uuid"
@@ -39,12 +41,14 @@ func (r *RegistrationRepository) SoftDelete(id uuid.UUID) error {
 
 type RegistrationFilter struct {
 	FacilityID *uuid.UUID
-	VisitDate  string
-	Search     string
-	Sex        string
-	IsNewUser  *bool
-	DateFrom   string
-	DateTo     string
+	// District filters registrations to facilities in this district (trimmed, case-insensitive match).
+	District  string
+	VisitDate string
+	Search    string
+	Sex       string
+	IsNewUser *bool
+	DateFrom  string
+	DateTo    string
 }
 
 func (r *RegistrationRepository) List(page, perPage int, f RegistrationFilter) ([]models.FPRegistration, int64, error) {
@@ -55,6 +59,11 @@ func (r *RegistrationRepository) List(page, perPage int, f RegistrationFilter) (
 
 	if f.FacilityID != nil {
 		q = q.Where("facility_id = ?", *f.FacilityID)
+	}
+	if strings.TrimSpace(f.District) != "" {
+		d := strings.TrimSpace(f.District)
+		q = q.Where("facility_id IN (?)",
+			r.db.Model(&models.Facility{}).Select("id").Where("LOWER(TRIM(district)) = LOWER(?)", d))
 	}
 	if f.VisitDate != "" {
 		q = q.Where("visit_date = ?", f.VisitDate)

@@ -7,6 +7,7 @@ import (
 
 	"fpreg/internal/middleware"
 	"fpreg/internal/models"
+	"fpreg/internal/repository"
 	"fpreg/internal/service"
 	"fpreg/internal/utils"
 
@@ -15,11 +16,12 @@ import (
 )
 
 type UserHandler struct {
-	userSvc *service.UserService
+	userSvc      *service.UserService
+	facilityRepo *repository.FacilityRepository
 }
 
-func NewUserHandler(userSvc *service.UserService) *UserHandler {
-	return &UserHandler{userSvc: userSvc}
+func NewUserHandler(userSvc *service.UserService, facilityRepo *repository.FacilityRepository) *UserHandler {
+	return &UserHandler{userSvc: userSvc, facilityRepo: facilityRepo}
 }
 
 // CreateUser godoc
@@ -65,19 +67,44 @@ func (h *UserHandler) List(c *gin.Context) {
 	page, perPage := utils.GetPagination(c)
 
 	var facilityID *uuid.UUID
-	if fid := c.Query("facility_id"); fid != "" {
-		id, err := uuid.Parse(fid)
-		if err == nil {
+	districtScope := ""
+	roleVal, _ := c.Get("user_role")
+	actorRole, _ := roleVal.(models.Role)
+
+	if actorRole == models.RoleDistrictBiostatistician {
+		districtScope = middleware.GetUserDistrict(c)
+		if districtScope == "" {
+			utils.RespondError(c, http.StatusForbidden, "No district assigned to your account")
+			return
+		}
+		if fid := c.Query("facility_id"); fid != "" {
+			id, err := uuid.Parse(fid)
+			if err != nil {
+				utils.RespondError(c, http.StatusBadRequest, "Invalid facility_id")
+				return
+			}
+			ok, ferr := h.facilityRepo.FacilityBelongsToDistrict(id, districtScope)
+			if ferr != nil || !ok {
+				utils.RespondForbidden(c)
+				return
+			}
 			facilityID = &id
+			districtScope = ""
+		}
+	} else {
+		if fid := c.Query("facility_id"); fid != "" {
+			id, err := uuid.Parse(fid)
+			if err == nil {
+				facilityID = &id
+			}
+		}
+		scopedFID := middleware.GetScopedFacilityID(c)
+		if scopedFID != nil {
+			facilityID = scopedFID
 		}
 	}
 
-	scopedFID := middleware.GetScopedFacilityID(c)
-	if scopedFID != nil {
-		facilityID = scopedFID
-	}
-
-	users, total, err := h.userSvc.List(page, perPage, facilityID)
+	users, total, err := h.userSvc.List(page, perPage, facilityID, districtScope)
 	if err != nil {
 		utils.RespondError(c, http.StatusInternalServerError, "Failed to list users")
 		return
@@ -108,6 +135,11 @@ func (h *UserHandler) GetByID(c *gin.Context) {
 	user, err := h.userSvc.GetByID(id)
 	if err != nil {
 		utils.RespondNotFound(c, "User")
+		return
+	}
+	actorID := middleware.GetUserID(c)
+	if !h.userSvc.CanActorAccessUser(actorID, id) {
+		utils.RespondForbidden(c)
 		return
 	}
 	utils.RespondOK(c, user)
@@ -173,8 +205,8 @@ func (h *UserHandler) Import(c *gin.Context) {
 
 	header := rows[0]
 	fullNameIdx, emailIdx, passwordIdx, roleIdx, facilityIDIdx := -1, -1, -1, -1, -1
-	for i, h := range header {
-		switch strings.ToLower(strings.TrimSpace(h)) {
+	for i, col := range header {
+		switch strings.ToLower(strings.TrimSpace(col)) {
 		case "full_name":
 			fullNameIdx = i
 		case "email":
@@ -214,9 +246,15 @@ func (h *UserHandler) Import(c *gin.Context) {
 			Role:     row[roleIdx],
 		}
 
-		// Facility: for superadmin we accept facility_id from CSV; for facility_admin we force their own facility
+		// Facility: facility_admin forces own facility; district_biostatistician uses CSV facility_id (must be in district — validated in UserService)
 		if actorRole == models.RoleFacilityAdmin {
 			input.FacilityID = actorFacilityID
+		} else if actorRole == models.RoleDistrictBiostatistician {
+			if facilityIDIdx >= 0 && facilityIDIdx < len(row) && row[facilityIDIdx] != "" {
+				if fid, err := uuid.Parse(row[facilityIDIdx]); err == nil {
+					input.FacilityID = &fid
+				}
+			}
 		} else if facilityIDIdx >= 0 && facilityIDIdx < len(row) && row[facilityIDIdx] != "" {
 			if fid, err := uuid.Parse(row[facilityIDIdx]); err == nil {
 				input.FacilityID = &fid

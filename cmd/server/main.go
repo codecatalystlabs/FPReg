@@ -16,6 +16,14 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// @title HMIS MCH 007 – Integrated FP Register API
+// @version 1.0
+// @description Uganda MoH HMIS MCH 007 Integrated Family Planning Register
+// @BasePath /
+//
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
 func main() {
 	cfg := config.Load()
 
@@ -24,7 +32,8 @@ func main() {
 	docs.SwaggerInfo.Description = "Uganda MoH HMIS MCH 007 Integrated Family Planning Register"
 	docs.SwaggerInfo.BasePath = cfg.BasePath
 	docs.SwaggerInfo.Host = ""
-	docs.SwaggerInfo.Schemes = []string{"https", "http"}
+	//docs.SwaggerInfo.Schemes = []string{"https", "http"}
+	docs.SwaggerInfo.Schemes = []string{"http"}
 
 	gin.SetMode(cfg.GinMode)
 
@@ -58,18 +67,18 @@ func main() {
 	// Services
 	auditSvc := service.NewAuditService(auditRepo)
 	authSvc := service.NewAuthService(userRepo, refreshTokenRepo, cfg)
-	userSvc := service.NewUserService(userRepo, auditSvc)
+	userSvc := service.NewUserService(userRepo, facilityRepo, auditSvc)
 	facilitySvc := service.NewFacilityService(facilityRepo, auditSvc)
 	registrationSvc := service.NewRegistrationService(registrationRepo, clientNumberRepo, facilityRepo, auditSvc)
 	fpReportSvc := service.NewFPReportService(registrationRepo, facilityRepo)
 	dhisSyncSvc := service.NewDHIS2SyncService(cfg, fpReportSvc, facilityRepo, dhisRepo)
 
 	// Handlers
-	authHandler := handler.NewAuthHandler(authSvc, auditSvc)
-	userHandler := handler.NewUserHandler(userSvc)
+	authHandler := handler.NewAuthHandler(authSvc, auditSvc, userRepo)
+	userHandler := handler.NewUserHandler(userSvc, facilityRepo)
 	facilityHandler := handler.NewFacilityHandler(facilitySvc)
 	optionSetHandler := handler.NewOptionSetHandler(optionSetRepo)
-	registrationHandler := handler.NewRegistrationHandler(registrationSvc)
+	registrationHandler := handler.NewRegistrationHandler(registrationSvc, facilityRepo)
 	auditHandler := handler.NewAuditHandler(auditSvc)
 	fpReportHandler := handler.NewFPReportHandler(fpReportSvc, facilityRepo, dhisRepo, dhisSyncSvc)
 

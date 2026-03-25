@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"sort"
+	"strings"
 	"time"
 
 	"fpreg/internal/config"
@@ -13,6 +16,7 @@ import (
 	"fpreg/internal/repository"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type DHIS2SyncService struct {
@@ -46,13 +50,32 @@ type dhis2Payload struct {
 	DataValues []dhis2DataValue `json:"dataValues"`
 }
 
+// MissingMappingWithValue is an aggregated cell that has no usable DHIS2 mapping row yet.
+type MissingMappingWithValue struct {
+	LocalIndicatorKey string `json:"local_indicator_key"`
+	Value             int    `json:"value"`
+}
+
 type SyncPreview struct {
-	Period          string              `json:"period"`
-	OrgUnitUID      string              `json:"orgunit_uid"`
-	Cells           []FPCellWithMapping `json:"cells"`
-	DataValues      []dhis2DataValue    `json:"data_values"`
-	MissingMappings []string            `json:"missing_mappings"`
-	MissingOrgUnits []string            `json:"missing_org_units"`
+	Period                   string                    `json:"period"`
+	OrgUnitUID               string                    `json:"orgunit_uid"`
+	Cells                    []FPCellWithMapping       `json:"cells"`
+	DataValues               []dhis2DataValue          `json:"data_values"`
+	MissingMappings          []string                  `json:"missing_mappings"`
+	MissingMappingWithValues []MissingMappingWithValue `json:"missing_mapping_with_values,omitempty"`
+	MissingOrgUnits          []string                  `json:"missing_org_units"`
+}
+
+// DHIS2SyncOutcome is returned from Sync for UI feedback when no HTTP batches ran.
+type DHIS2SyncOutcome struct {
+	Logs                     []models.ReportSyncLog    `json:"logs"`
+	PreviewFacilityCount     int                       `json:"preview_facility_count"`
+	TotalDataValues          int                       `json:"total_data_values"`
+	PostedBatches            int                       `json:"posted_batches"`
+	SkippedNoDataValues      int                       `json:"skipped_no_data_values"`
+	SkippedAlreadySynced     int                       `json:"skipped_already_synced"`
+	DetailMessages           []string                  `json:"detail_messages"`
+	MissingMappingWithValues []MissingMappingWithValue `json:"missing_mapping_with_values,omitempty"`
 }
 
 func NewDHIS2SyncService(
@@ -98,7 +121,16 @@ func (s *DHIS2SyncService) BuildPreview(period string, facilityIDs []uuid.UUID) 
 
 	for facID, facRows := range grouped {
 		fac, err := s.facilities.FindByID(facID)
-		if err != nil || fac == nil || fac.UID == "" {
+		orgUnit := ""
+		if om, e := s.dhisRepo.FindOrgUnitMappingByFacilityID(facID); e == nil && om != nil {
+			orgUnit = strings.TrimSpace(om.DHIS2OrgUnitUID)
+		} else if e != nil && !errors.Is(e, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("org unit mapping for facility %s: %w", facID, e)
+		}
+		if orgUnit == "" && fac != nil {
+			orgUnit = strings.TrimSpace(fac.UID)
+		}
+		if err != nil || fac == nil || orgUnit == "" {
 			// all rows for this facility missing orgUnit
 			for _, r := range facRows {
 				_ = s.dhisRepo.CreateExclusion(&models.AggregationExclusionLog{
@@ -111,7 +143,6 @@ func (s *DHIS2SyncService) BuildPreview(period string, facilityIDs []uuid.UUID) 
 			}
 			continue
 		}
-		orgUnit := fac.UID
 
 		preview := SyncPreview{
 			Period:     period,
@@ -130,10 +161,17 @@ func (s *DHIS2SyncService) BuildPreview(period string, facilityIDs []uuid.UUID) 
 				Value:             r.Value,
 			}
 
-			mapping, err := s.dhisRepo.FindMappingByLocalKey(r.LocalIndicatorKey)
-			if err != nil || mapping == nil || !mapping.Active || mapping.DHIS2DataElementUID == "" || mapping.DHIS2CatOptionComboUID == "" {
+			mapping, mErr := s.dhisRepo.FindMappingByLocalKey(r.LocalIndicatorKey)
+			if mErr != nil {
+				if !errors.Is(mErr, gorm.ErrRecordNotFound) {
+					return nil, mErr
+				}
 				cell.ExcludedReason = "MISSING_MAPPING"
 				missingMappings[r.LocalIndicatorKey] = true
+				preview.MissingMappingWithValues = append(preview.MissingMappingWithValues, MissingMappingWithValue{
+					LocalIndicatorKey: r.LocalIndicatorKey,
+					Value:             r.Value,
+				})
 				preview.Cells = append(preview.Cells, cell)
 				continue
 			}
@@ -168,34 +206,84 @@ func (s *DHIS2SyncService) BuildPreview(period string, facilityIDs []uuid.UUID) 
 
 // Sync posts the payloads to DHIS2 and writes logs + cell status.
 // If force is false, already-synced cells with same checksum are skipped.
-func (s *DHIS2SyncService) Sync(period string, facilityIDs []uuid.UUID, force bool, initiatedBy string) ([]models.ReportSyncLog, error) {
+func (s *DHIS2SyncService) Sync(period string, facilityIDs []uuid.UUID, force bool, initiatedBy string) (DHIS2SyncOutcome, error) {
+	out := DHIS2SyncOutcome{
+		Logs:           []models.ReportSyncLog{},
+		DetailMessages: []string{},
+	}
 	previews, err := s.BuildPreview(period, facilityIDs)
 	if err != nil {
-		return nil, err
+		return out, err
 	}
 	settings, err := s.dhisRepo.GetActiveSettings()
 	if err != nil {
-		return nil, fmt.Errorf("no active DHIS2 settings: %w", err)
+		return out, fmt.Errorf("no active DHIS2 settings: %w", err)
 	}
 
 	baseURL := settings.DHIS2BaseURL
 	if baseURL == "" {
-		return nil, fmt.Errorf("dhis2 base url not configured")
+		return out, fmt.Errorf("dhis2 base url not configured")
 	}
 
-	var logs []models.ReportSyncLog
+	out.PreviewFacilityCount = len(previews)
+	if len(previews) == 0 {
+		out.DetailMessages = append(out.DetailMessages,
+			"No DHIS2 payloads were built: no aggregated registrations for this period in scope, or every facility is missing a resolvable DHIS2 org unit (facility uid / org_unit_mappings).")
+		return out, nil
+	}
+
+	mergedMissing := map[string]int{}
+	for _, p := range previews {
+		for _, d := range p.MissingMappingWithValues {
+			mergedMissing[d.LocalIndicatorKey] += d.Value
+		}
+	}
+	if len(mergedMissing) > 0 {
+		keys := make([]string, 0, len(mergedMissing))
+		for k := range mergedMissing {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			out.MissingMappingWithValues = append(out.MissingMappingWithValues, MissingMappingWithValue{
+				LocalIndicatorKey: k,
+				Value:             mergedMissing[k],
+			})
+		}
+		out.DetailMessages = append(out.DetailMessages,
+			"Register aggregates exist, but DHIS2 cannot post until each local_indicator_key below has dhis2_data_element_uid and dhis2_cat_option_combo_uid set in dhis2_mapping_item (stub rows are created on first app migrate).")
+	}
 
 	for _, p := range previews {
+		out.TotalDataValues += len(p.DataValues)
 		if len(p.DataValues) == 0 {
+			out.SkippedNoDataValues++
+			nMiss := len(p.MissingMappings)
+			if nMiss > 0 && len(p.MissingMappingWithValues) > 0 {
+				var parts []string
+				for i, d := range p.MissingMappingWithValues {
+					if i >= 5 {
+						parts = append(parts, fmt.Sprintf("… +%d more key(s)", nMiss-5))
+						break
+					}
+					parts = append(parts, fmt.Sprintf("%s=%d", d.LocalIndicatorKey, d.Value))
+				}
+				out.DetailMessages = append(out.DetailMessages, fmt.Sprintf(
+					"Org unit %s: 0 data values to send — %d key(s) lack DHIS2 UIDs in dhis2_mapping_item. Examples: %s",
+					p.OrgUnitUID, nMiss, strings.Join(parts, "; ")))
+			} else {
+				out.DetailMessages = append(out.DetailMessages, fmt.Sprintf(
+					"Org unit %s: 0 data values to send (no mapped non-zero cells, or all counts zero).",
+					p.OrgUnitUID))
+			}
 			continue
 		}
 
-		// Filter out cells already synced (idempotency)
 		filtered := []dhis2DataValue{}
 		for _, dv := range p.DataValues {
 			checksum := FPReportChecksum(dv.Period, dv.OrgUnit, "", dv.Value)
 			if !force {
-				status, err := s.dhisRepo.GetCellStatus(dv.Period, dv.OrgUnit, "") // using empty key for now; could extend to local_indicator_key in future
+				status, err := s.dhisRepo.GetCellStatus(dv.Period, dv.OrgUnit, "")
 				if err == nil && status.SyncStatus == "synced" && status.Checksum == checksum {
 					continue
 				}
@@ -203,40 +291,43 @@ func (s *DHIS2SyncService) Sync(period string, facilityIDs []uuid.UUID, force bo
 			filtered = append(filtered, dv)
 		}
 		if len(filtered) == 0 {
+			out.SkippedAlreadySynced++
+			out.DetailMessages = append(out.DetailMessages, fmt.Sprintf(
+				"Org unit %s: built %d data value(s) but all were skipped as unchanged (already synced). Enable “Force resync” to resend.",
+				p.OrgUnitUID, len(p.DataValues)))
 			continue
 		}
 
 		payload := dhis2Payload{DataValues: filtered}
 		bodyBytes, _ := json.Marshal(payload)
 
-		req, err := http.NewRequest("POST", fmt.Sprintf("%s/api/dataValueSets", baseURL), bytes.NewReader(bodyBytes))
+		req, err := http.NewRequest("POST", fmt.Sprintf("%s/api/dataValueSets", strings.TrimRight(baseURL, "/")), bytes.NewReader(bodyBytes))
 		if err != nil {
-			return nil, err
+			return out, err
 		}
 		req.Header.Set("Content-Type", "application/json")
-		// Basic auth from settings
 		if settings.AuthType == "basic" && settings.Username != "" {
 			user := settings.Username
-			pass := settings.PasswordEncrypted // assume plaintext or pre-encrypted as needed
+			pass := settings.PasswordEncrypted
 			auth := base64.StdEncoding.EncodeToString([]byte(user + ":" + pass))
 			req.Header.Set("Authorization", "Basic "+auth)
 		} else if settings.AuthType == "token" && settings.TokenEncrypted != "" {
 			req.Header.Set("Authorization", "Bearer "+settings.TokenEncrypted)
 		}
 
-		resp, err := s.httpClient.Do(req)
+		resp, httpErr := s.httpClient.Do(req)
 		statusCode := 0
 		respBody := ""
 		success := false
-		if err == nil && resp != nil {
-			defer resp.Body.Close()
+		if httpErr != nil {
+			respBody = httpErr.Error()
+		} else if resp != nil {
 			statusCode = resp.StatusCode
 			var buf bytes.Buffer
 			_, _ = buf.ReadFrom(resp.Body)
+			_ = resp.Body.Close()
 			respBody = buf.String()
 			success = statusCode >= 200 && statusCode < 300
-		} else if err != nil {
-			respBody = err.Error()
 		}
 
 		log := models.ReportSyncLog{
@@ -252,16 +343,16 @@ func (s *DHIS2SyncService) Sync(period string, facilityIDs []uuid.UUID, force bo
 			InitiatedBy:        initiatedBy,
 		}
 		if err := s.dhisRepo.CreateSyncLog(&log); err != nil {
-			return logs, err
+			return out, err
 		}
-		logs = append(logs, log)
+		out.Logs = append(out.Logs, log)
+		out.PostedBatches++
 
-		// Update cell statuses
 		now := time.Now()
 		for _, dv := range filtered {
 			cs := models.ReportCellSyncStatus{
 				Period:            dv.Period,
-				LocalIndicatorKey: "", // could extend to carry local key for more granular status
+				LocalIndicatorKey: "",
 				OrgUnitUID:        dv.OrgUnit,
 				Value:             dv.Value,
 				LastSyncedAt:      &now,
@@ -270,10 +361,13 @@ func (s *DHIS2SyncService) Sync(period string, facilityIDs []uuid.UUID, force bo
 				Checksum:          FPReportChecksum(dv.Period, dv.OrgUnit, "", dv.Value),
 			}
 			if err := s.dhisRepo.UpsertCellStatus(&cs); err != nil {
-				return logs, err
+				return out, err
 			}
 		}
 	}
 
-	return logs, nil
+	if out.PostedBatches == 0 && len(out.DetailMessages) == 0 {
+		out.DetailMessages = append(out.DetailMessages, "Nothing was posted to DHIS2.")
+	}
+	return out, nil
 }

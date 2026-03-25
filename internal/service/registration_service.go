@@ -350,8 +350,14 @@ func (s *RegistrationService) validateInput(input CreateRegistrationInput) []uti
 	if !utils.IsValidSex(input.Sex) {
 		errs = append(errs, utils.ErrorDetail{Field: "sex", Message: "Sex must be M or F"})
 	}
-	if input.Age < 0 || input.Age > 120 {
-		errs = append(errs, utils.ErrorDetail{Field: "age", Message: "Age must be between 0 and 120"})
+	if input.Age < 10 {
+		errs = append(errs, utils.ErrorDetail{Field: "age", Message: "Age must be 10 years or above"})
+	}
+	if strings.ToUpper(strings.TrimSpace(input.Sex)) == "F" && input.Age > 49 {
+		errs = append(errs, utils.ErrorDetail{Field: "age", Message: "For females, age must not exceed 49 years"})
+	}
+	if strings.ToUpper(strings.TrimSpace(input.Sex)) == "M" && input.Age > 120 {
+		errs = append(errs, utils.ErrorDetail{Field: "age", Message: "Age must be 10–120 years"})
 	}
 	if input.IsNewUser && input.IsRevisit {
 		errs = append(errs, utils.ErrorDetail{Field: "is_new_user", Message: "Cannot be both new user and revisit"})

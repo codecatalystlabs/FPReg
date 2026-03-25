@@ -20,6 +20,7 @@ import { LoadingState } from '../components/LoadingState';
 import { ErrorState } from '../components/ErrorState';
 import { useOptionSetStore } from '../store/optionSetStore';
 import { registrationsApi } from '../api/registrations';
+import { formatOptionalNumberDisplay, parseAgeWhileTyping } from '../utils/numberInput';
 import { logger } from '../utils/logger';
 import { colors, spacing, radii, shadows } from '../theme';
 import type { FPRegistration, RegistrationInput, OptionSetItem } from '../types';
@@ -124,11 +125,18 @@ function EditForm({
   });
 
   const watchSex = watch('sex');
+  const watchAge = watch('age');
   const watchRevisit = watch('is_revisit');
   const watchSwitching = watch('is_switching');
   const watchCervStatus = watch('cervical_cancer_status');
   const watchImplRemoval = watch('implant_removal_reason');
   const watchIudRemoval = watch('iud_removal_reason');
+
+  useEffect(() => {
+    if (watchSex === 'F' && typeof watchAge === 'number' && watchAge > 49) {
+      setValue('age', 49);
+    }
+  }, [watchSex, watchAge, setValue]);
 
   const opts = useMemo(() => ({
     hts: toOptions(sets.hts_code || []),
@@ -176,7 +184,16 @@ function EditForm({
             <AppSelect label="Sex" options={[{ value: 'F', label: 'Female' }, { value: 'M', label: 'Male' }]} value={field.value} onChange={field.onChange} required />
           )} />
           <Controller control={control} name="age" render={({ field }) => (
-            <AppInput label="Age" value={String(field.value)} onChangeText={(v) => field.onChange(parseInt(v) || 0)} keyboardType="number-pad" required />
+            <AppInput
+              label="Age"
+              value={formatOptionalNumberDisplay(field.value)}
+              onChangeText={(v) => {
+                const max = watchSex === 'F' ? 49 : 120;
+                field.onChange(parseAgeWhileTyping(v, max));
+              }}
+              keyboardType="number-pad"
+              required
+            />
           )} />
           <Controller control={control} name="phone_number" render={({ field }) => (
             <AppInput label="Phone" value={field.value} onChangeText={field.onChange} keyboardType="phone-pad" />

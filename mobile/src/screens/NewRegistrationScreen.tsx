@@ -19,11 +19,19 @@ import { AppRadioGroup } from '../components/AppRadioGroup';
 import { AppButton } from '../components/AppButton';
 import { SectionHeader } from '../components/SectionHeader';
 import { useOptionSetStore } from '../store/optionSetStore';
+import { useAuthStore } from '../store/authStore';
 import { registrationsApi } from '../api/registrations';
+import { facilitiesApi } from '../api/facilities';
 import { todayISO } from '../utils/format';
+import {
+  formatOptionalNumberDisplay,
+  parseAgeWhileTyping,
+  parseNonNegWhileTyping,
+  parseQtyWhileTyping,
+} from '../utils/numberInput';
 import { logger } from '../utils/logger';
 import { colors, spacing, radii, shadows } from '../theme';
-import type { RegistrationInput, OptionSetItem } from '../types';
+import type { RegistrationInput, OptionSetItem, Facility } from '../types';
 import { AxiosError } from 'axios';
 
 const schema = z.object({
@@ -31,7 +39,7 @@ const schema = z.object({
   surname: z.string().min(1, 'Surname is required'),
   given_name: z.string().min(1, 'Given name is required'),
   sex: z.string().min(1, 'Sex is required'),
-  age: z.number().min(0).max(120, 'Age must be 0–120'),
+  age: z.number().min(10, 'Age must be 10 years or above'),
   is_new_user: z.boolean(),
   is_revisit: z.boolean(),
   previous_method: z.string().optional(),
@@ -67,6 +75,21 @@ const schema = z.object({
 }, {
   message: 'Only one permanent method is allowed',
   path: ['tubal_ligation'],
+}).refine((d) => {
+  // For females, age must not exceed 49
+  return d.sex !== 'F' || d.age <= 49;
+}, {
+  message: 'For females, age must not exceed 49 years',
+  path: ['age'],
+}).superRefine((d: any, ctx) => {
+  // Postpartum vs post-abortion timing: either one or none, but not both.
+  if (d.postpartum_fp_timing && d.post_abortion_fp_timing) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Choose either postpartum or post-abortion timing, not both',
+      path: ['postpartum_fp_timing'],
+    });
+  }
 });
 
 type FormData = z.infer<typeof schema>;
@@ -105,12 +128,27 @@ function toOptions(items: OptionSetItem[]) {
 
 export function NewRegistrationScreen() {
   const nav = useNavigation();
+  const user = useAuthStore((s) => s.user);
+  const isDistrictBiostat = user?.role === 'district_biostatistician';
   const sets = useOptionSetStore((s) => s.sets);
   const fetchSets = useOptionSetStore((s) => s.fetchAll);
   const [submitting, setSubmitting] = useState(false);
-  const [formData, setFormData] = useState<RegistrationInput>({ ...defaultValues });
+  const [districtFacilities, setDistrictFacilities] = useState<Facility[]>([]);
+  const [entryFacilityId, setEntryFacilityId] = useState('');
 
   useEffect(() => { fetchSets(); }, []);
+
+  useEffect(() => {
+    if (!isDistrictBiostat) return;
+    (async () => {
+      try {
+        const list = await facilitiesApi.listAll();
+        setDistrictFacilities(list);
+      } catch {
+        logger.error('Registration', 'Failed to load facilities for district');
+      }
+    })();
+  }, [isDistrictBiostat]);
 
   const { control, handleSubmit, watch, setValue, formState: { errors } } = useForm<RegistrationInput>({
     defaultValues,
@@ -118,6 +156,14 @@ export function NewRegistrationScreen() {
   });
 
   const watchSex = watch('sex');
+  const watchAge = watch('age');
+
+  useEffect(() => {
+    if (watchSex === 'F' && typeof watchAge === 'number' && watchAge > 49) {
+      setValue('age', 49);
+    }
+  }, [watchSex, watchAge, setValue]);
+
   const watchRevisit = watch('is_revisit');
   const watchNewUser = watch('is_new_user');
   const watchSwitching = watch('is_switching');
@@ -204,7 +250,15 @@ export function NewRegistrationScreen() {
   const onSubmit = async (data: RegistrationInput) => {
     setSubmitting(true);
     try {
-      const result = await registrationsApi.create(data);
+      if (isDistrictBiostat && !entryFacilityId) {
+        Alert.alert('Error', 'Select the reporting facility');
+        setSubmitting(false);
+        return;
+      }
+      const result = await registrationsApi.create(
+        data,
+        isDistrictBiostat ? { facilityId: entryFacilityId } : undefined,
+      );
       Alert.alert('Saved', `Client #: ${result.client_number || 'Visitor'}`, [
         { text: 'OK', onPress: () => nav.goBack() },
       ]);
@@ -220,6 +274,25 @@ export function NewRegistrationScreen() {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+
+        {isDistrictBiostat && (
+          <>
+            <SectionHeader title="Reporting facility" icon="business" subtitle="Data is saved under this facility" />
+            <View style={styles.section}>
+              <AppSelect
+                label="Facility"
+                options={districtFacilities.map((f) => ({
+                  value: f.id,
+                  label: `${f.name} (${f.code})`,
+                }))}
+                value={entryFacilityId}
+                onChange={setEntryFacilityId}
+                placeholder="Select facility in your district…"
+                required
+              />
+            </View>
+          </>
+        )}
 
         {/* Visit Info */}
         <SectionHeader title="Visit Information" icon="calendar" />
@@ -251,7 +324,17 @@ export function NewRegistrationScreen() {
             <AppSelect label="Sex" options={[{ value: 'F', label: 'Female' }, { value: 'M', label: 'Male' }]} value={field.value} onChange={field.onChange} error={errors.sex?.message} required />
           )} />
           <Controller control={control} name="age" render={({ field }) => (
-            <AppInput label="Age (years)" value={field.value ? String(field.value) : ''} onChangeText={(v) => field.onChange(parseInt(v) || 0)} keyboardType="number-pad" error={errors.age?.message} required />
+            <AppInput
+              label="Age (years)"
+              value={formatOptionalNumberDisplay(field.value)}
+              onChangeText={(v) => {
+                const max = watchSex === 'F' ? 49 : 120;
+                field.onChange(parseAgeWhileTyping(v, max));
+              }}
+              keyboardType="number-pad"
+              error={errors.age?.message}
+              required
+            />
           )} />
           <Controller control={control} name="village" render={({ field }) => (
             <AppInput label="Village/Cell/Zone" value={field.value} onChangeText={field.onChange} />
@@ -338,33 +421,33 @@ export function NewRegistrationScreen() {
                 <AppInput label="CoCs" value={String(field.value)} onChangeText={(v) => field.onChange(Math.min(3, Math.max(0, parseInt(v) || 0)))} keyboardType="number-pad" disabled={methodDisabled.pills} />
               )} />
               <Controller control={control} name="pills_pop_cycles" render={({ field }) => (
-                <AppInput label="POP" value={String(field.value)} onChangeText={(v) => field.onChange(Math.min(3, Math.max(0, parseInt(v) || 0)))} keyboardType="number-pad" disabled={methodDisabled.pills} />
+                <AppInput label="POP" value={String(field.value)} onChangeText={(v) => field.onChange(parseQtyWhileTyping(v, 3))} keyboardType="number-pad" disabled={methodDisabled.pills} />
               )} />
               <Controller control={control} name="pills_ecp_pieces" render={({ field }) => (
-                <AppInput label="ECP" value={String(field.value)} onChangeText={(v) => field.onChange(Math.min(1, Math.max(0, parseInt(v) || 0)))} keyboardType="number-pad" disabled={methodDisabled.pills} />
+                <AppInput label="ECP" value={String(field.value)} onChangeText={(v) => field.onChange(parseQtyWhileTyping(v, 1))} keyboardType="number-pad" disabled={methodDisabled.pills} />
               )} />
             </>
           )}
           <Text style={styles.subLabel}>Condoms (Pieces)</Text>
           <Controller control={control} name="condoms_male_units" render={({ field }) => (
-            <AppInput label="Male" value={String(field.value)} onChangeText={(v) => field.onChange(Math.min(144, Math.max(0, parseInt(v) || 0)))} keyboardType="number-pad" disabled={methodDisabled.condoms} />
+            <AppInput label="Male" value={String(field.value)} onChangeText={(v) => field.onChange(parseQtyWhileTyping(v, 144))} keyboardType="number-pad" disabled={methodDisabled.condoms} />
           )} />
           {watchSex !== 'M' && (
             <Controller control={control} name="condoms_female_units" render={({ field }) => (
-              <AppInput label="Female" value={String(field.value)} onChangeText={(v) => field.onChange(Math.max(0, parseInt(v) || 0))} keyboardType="number-pad" disabled={methodDisabled.condoms} />
+              <AppInput label="Female" value={String(field.value)} onChangeText={(v) => field.onChange(parseNonNegWhileTyping(v))} keyboardType="number-pad" disabled={methodDisabled.condoms} />
             )} />
           )}
           {watchSex !== 'M' && (
             <>
               <Text style={styles.subLabel}>Injectables (Doses) – select one only</Text>
               <Controller control={control} name="injectable_dmpa_im_doses" render={({ field }) => (
-                <AppInput label="DMPA-IM" value={String(field.value)} onChangeText={(v) => field.onChange(Math.min(1, Math.max(0, parseInt(v) || 0)))} keyboardType="number-pad" disabled={methodDisabled.injectables || injectableDisabled.im} />
+                <AppInput label="DMPA-IM" value={String(field.value)} onChangeText={(v) => field.onChange(parseQtyWhileTyping(v, 1))} keyboardType="number-pad" disabled={methodDisabled.injectables || injectableDisabled.im} />
               )} />
               <Controller control={control} name="injectable_dmpa_sc_pa_doses" render={({ field }) => (
-                <AppInput label="DMPA-SC PA" value={String(field.value)} onChangeText={(v) => field.onChange(Math.min(4, Math.max(0, parseInt(v) || 0)))} keyboardType="number-pad" helpText="Provider Administered" disabled={methodDisabled.injectables || injectableDisabled.pa} />
+                <AppInput label="DMPA-SC PA" value={String(field.value)} onChangeText={(v) => field.onChange(parseQtyWhileTyping(v, 4))} keyboardType="number-pad" helpText="Provider Administered" disabled={methodDisabled.injectables || injectableDisabled.pa} />
               )} />
               <Controller control={control} name="injectable_dmpa_sc_si_doses" render={({ field }) => (
-                <AppInput label="DMPA-SC SI" value={String(field.value)} onChangeText={(v) => field.onChange(Math.min(4, Math.max(0, parseInt(v) || 0)))} keyboardType="number-pad" helpText="Self-Injected" disabled={methodDisabled.injectables || injectableDisabled.si} />
+                <AppInput label="DMPA-SC SI" value={String(field.value)} onChangeText={(v) => field.onChange(parseQtyWhileTyping(v, 4))} keyboardType="number-pad" helpText="Self-Injected" disabled={methodDisabled.injectables || injectableDisabled.si} />
               )} />
               <Text style={styles.subLabel}>Implants – select one only</Text>
               <Controller control={control} name="implant_3_years" render={({ field }) => (<AppCheckbox label="Implant 3 Years" value={field.value} onChange={field.onChange} disabled={methodDisabled.implant || implantDisabled.three} />)} />
@@ -393,10 +476,30 @@ export function NewRegistrationScreen() {
             <SectionHeader title="Post-Pregnancy" icon="heart" subtitle="Columns 21–22" />
             <View style={styles.section}>
               <Controller control={control} name="postpartum_fp_timing" render={({ field }) => (
-                <AppSelect label="Postpartum FP Timing" options={opts.ppTiming} value={field.value} onChange={field.onChange} />
+                <AppSelect
+                  label="Postpartum FP Timing"
+                  options={opts.ppTiming}
+                  value={field.value}
+                  onChange={(v) => {
+                    field.onChange(v);
+                    if (v) {
+                      setValue('post_abortion_fp_timing', '');
+                    }
+                  }}
+                />
               )} />
               <Controller control={control} name="post_abortion_fp_timing" render={({ field }) => (
-                <AppSelect label="Post-Abortion FP Timing" options={opts.paTiming} value={field.value} onChange={field.onChange} />
+                <AppSelect
+                  label="Post-Abortion FP Timing"
+                  options={opts.paTiming}
+                  value={field.value}
+                  onChange={(v) => {
+                    field.onChange(v);
+                    if (v) {
+                      setValue('postpartum_fp_timing', '');
+                    }
+                  }}
+                />
               )} />
             </View>
           </>
@@ -408,7 +511,18 @@ export function NewRegistrationScreen() {
             <SectionHeader title="LARC Removal" icon="medkit-outline" subtitle="Implant / IUD removal" />
             <View style={styles.section}>
               <Controller control={control} name="implant_removal_reason" render={({ field }) => (
-                <AppSelect label="Implant Removal Reason" options={opts.larcReason} value={field.value} onChange={field.onChange} />
+                <AppSelect
+                  label="Implant Removal Reason"
+                  options={opts.larcReason}
+                  value={field.value}
+                  onChange={(v) => {
+                    field.onChange(v);
+                    if (v) {
+                      setValue('iud_removal_reason', '');
+                      setValue('iud_removal_timing', '');
+                    }
+                  }}
+                />
               )} />
               {!!watchImplRemoval && (
                 <Controller control={control} name="implant_removal_timing" render={({ field }) => (
@@ -416,7 +530,18 @@ export function NewRegistrationScreen() {
                 )} />
               )}
               <Controller control={control} name="iud_removal_reason" render={({ field }) => (
-                <AppSelect label="IUD Removal Reason" options={opts.larcReason} value={field.value} onChange={field.onChange} />
+                <AppSelect
+                  label="IUD Removal Reason"
+                  options={opts.larcReason}
+                  value={field.value}
+                  onChange={(v) => {
+                    field.onChange(v);
+                    if (v) {
+                      setValue('implant_removal_reason', '');
+                      setValue('implant_removal_timing', '');
+                    }
+                  }}
+                />
               )} />
               {!!watchIudRemoval && (
                 <Controller control={control} name="iud_removal_timing" render={({ field }) => (
@@ -461,7 +586,8 @@ export function NewRegistrationScreen() {
                         label={label}
                         value={selected.includes(code)}
                         onChange={(v) => {
-                          const next = v ? [...selected, code] : selected.filter((c) => c !== code);
+                          // Single-select: when a side effect is chosen, clear others.
+                          const next = v ? [code] : [];
                           field.onChange(next.join(','));
                         }}
                       />

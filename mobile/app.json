@@ -2,9 +2,9 @@
   "expo": {
     "name": "FP Register",
     "slug": "fpreg-mobile",
-    "version": "1.0.0",
+    "version": "1.0.6",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/branding/app_icon.png",
     "userInterfaceStyle": "light",
     "splash": {
       "backgroundColor": "#1e293b"
@@ -15,6 +15,7 @@
     },
     "android": {
       "adaptiveIcon": {
+        "foregroundImage": "./assets/branding/app_icon.png",
         "backgroundColor": "#1e293b"
       },
       "package": "ug.go.moh.fpreg"

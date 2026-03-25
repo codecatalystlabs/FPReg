@@ -1,7 +1,8 @@
 import type { Role } from '../types';
 
 const ADMIN_ROLES: Role[] = ['superadmin', 'facility_admin'];
-const WRITE_ROLES: Role[] = ['superadmin', 'facility_admin', 'facility_user'];
+const DISTRICT_ADMIN_ROLES: Role[] = ['superadmin', 'facility_admin', 'district_biostatistician'];
+const WRITE_ROLES: Role[] = ['superadmin', 'facility_admin', 'facility_user', 'district_biostatistician'];
 
 export function canCreateRegistration(role: Role): boolean {
   return WRITE_ROLES.includes(role);
@@ -16,7 +17,7 @@ export function canDeleteRegistration(role: Role): boolean {
 }
 
 export function canManageUsers(role: Role): boolean {
-  return ADMIN_ROLES.includes(role);
+  return DISTRICT_ADMIN_ROLES.includes(role);
 }
 
 export function canViewAuditLogs(role: Role): boolean {

@@ -162,12 +162,21 @@ const App = {
     document.querySelectorAll('.user-name').forEach(el => el.textContent = user.full_name || user.email);
     document.querySelectorAll('.user-role').forEach(el => el.textContent = user.role);
     document.querySelectorAll('.user-facility').forEach(el => {
-      el.textContent = user.facility ? user.facility.name : 'All Facilities';
+      if (user.role === 'district_biostatistician' && user.district) {
+        el.textContent = 'District: ' + user.district;
+      } else {
+        el.textContent = user.facility ? user.facility.name : 'All Facilities';
+      }
     });
 
     const role = user.role;
-    if (role !== 'superadmin' && role !== 'facility_admin') {
+    const adminNavRoles = ['superadmin', 'facility_admin', 'district_biostatistician'];
+    if (!adminNavRoles.includes(role)) {
       document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
+    }
+    const auditNavRoles = ['superadmin', 'facility_admin'];
+    if (!auditNavRoles.includes(role)) {
+      document.querySelectorAll('.facility-admin-audit').forEach(el => el.style.display = 'none');
     }
     if (role !== 'superadmin') {
       document.querySelectorAll('.superadmin-only').forEach(el => el.style.display = 'none');

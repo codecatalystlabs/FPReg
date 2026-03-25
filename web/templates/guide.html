@@ -20,7 +20,7 @@
       <div class="nav-section admin-only">Administration</div>
       <a href="{{.BasePath}}/admin/users" class="nav-link admin-only"><i class="bi bi-people"></i> Users</a>
       <a href="{{.BasePath}}/admin/facilities" class="nav-link superadmin-only"><i class="bi bi-hospital"></i> Facilities</a>
-      <a href="{{.BasePath}}/admin/audit-logs" class="nav-link admin-only"><i class="bi bi-shield-check"></i> Audit Logs</a>
+      <a href="{{.BasePath}}/admin/audit-logs" class="nav-link admin-only facility-admin-audit"><i class="bi bi-shield-check"></i> Audit Logs</a>
     </nav>
     <div class="user-info">
       <div class="fw-semibold user-name"></div>
@@ -375,6 +375,7 @@
                 <tr><td><code>facility_admin</code></td><td>Own facility data only</td><td>Create/edit registrations, manage facility users, view facility audit logs</td></tr>
                 <tr><td><code>facility_user</code></td><td>Own facility data only</td><td>Create and view registrations for their facility</td></tr>
                 <tr><td><code>reviewer</code></td><td>Own facility data only</td><td>View registrations (read-only access for supervision)</td></tr>
+                <tr><td><code>district_biostatistician</code></td><td>All facilities in assigned district (no single facility)</td><td>Create/view registrations (choose facility per entry), manage users (facility user/reviewer only) in district, FP reports for district; no audit log or facility master-data admin</td></tr>
               </tbody>
             </table>
           </div>

@@ -5,6 +5,7 @@ import (
 
 	"fpreg/internal/middleware"
 	"fpreg/internal/models"
+	"fpreg/internal/repository"
 	"fpreg/internal/service"
 	"fpreg/internal/utils"
 
@@ -14,10 +15,11 @@ import (
 type AuthHandler struct {
 	authSvc  *service.AuthService
 	auditSvc *service.AuditService
+	userRepo *repository.UserRepository
 }
 
-func NewAuthHandler(authSvc *service.AuthService, auditSvc *service.AuditService) *AuthHandler {
-	return &AuthHandler{authSvc: authSvc, auditSvc: auditSvc}
+func NewAuthHandler(authSvc *service.AuthService, auditSvc *service.AuditService, userRepo *repository.UserRepository) *AuthHandler {
+	return &AuthHandler{authSvc: authSvc, auditSvc: auditSvc, userRepo: userRepo}
 }
 
 type LoginRequest struct {
@@ -65,6 +67,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 				"role":        user.Role,
 				"facility_id": user.FacilityID,
 				"facility":    user.Facility,
+				"district":    user.District,
 			},
 		},
 	})
@@ -144,15 +147,20 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 // @Router       /api/v1/auth/me [get]
 func (h *AuthHandler) Me(c *gin.Context) {
 	userID := middleware.GetUserID(c)
-	email, _ := c.Get("user_email")
-	role, _ := c.Get("user_role")
-	facilityID := middleware.GetFacilityID(c)
+	user, err := h.userRepo.FindByID(userID)
+	if err != nil || user == nil {
+		utils.RespondUnauthorized(c, "User not found")
+		return
+	}
 
 	utils.RespondOK(c, gin.H{
-		"id":          userID,
-		"email":       email,
-		"role":        role,
-		"facility_id": facilityID,
+		"id":          user.ID,
+		"email":       user.Email,
+		"full_name":   user.FullName,
+		"role":        user.Role,
+		"facility_id": user.FacilityID,
+		"facility":    user.Facility,
+		"district":    user.District,
 	})
 }
 

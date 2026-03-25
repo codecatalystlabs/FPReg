@@ -2,6 +2,7 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, typography } from '../theme';
 import { useAuthStore } from '../store/authStore';
 import { canCreateRegistration } from '../utils/permissions';
@@ -35,6 +36,7 @@ const Tab = createBottomTabNavigator<TabParamList>();
 function TabNavigator() {
   const user = useAuthStore((s) => s.user);
   const showNewEntry = user ? canCreateRegistration(user.role) : false;
+  const insets = useSafeAreaInsets();
 
   return (
     <Tab.Navigator
@@ -56,7 +58,7 @@ function TabNavigator() {
           position: 'absolute',
           left: 16,
           right: 16,
-          bottom: 12,
+          bottom: Math.max(12, insets.bottom + 6),
           borderRadius: 18,
           borderTopWidth: 0,
           elevation: 8,
@@ -65,10 +67,10 @@ function TabNavigator() {
           shadowRadius: 8,
           shadowOffset: { width: 0, height: 2 },
           backgroundColor: colors.surface,
-          height: 64,
-          paddingBottom: 8,
+          height: 64 + Math.max(0, insets.bottom - 6),
+          paddingBottom: 8 + Math.max(0, insets.bottom - 6),
         },
-        tabBarSafeAreaInset: { bottom: 4 },
+        tabBarSafeAreaInset: { bottom: 0 },
         headerStyle: { backgroundColor: colors.surface },
         headerTitleStyle: { ...typography.h4, color: colors.text },
         headerShadowVisible: false,

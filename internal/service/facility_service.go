@@ -81,6 +81,16 @@ func (s *FacilityService) List(page, perPage int, search string) ([]models.Facil
 	return s.repo.List(page, perPage, search)
 }
 
+// ListByDistrict lists facilities in a single district (for district_biostatistician UI).
+func (s *FacilityService) ListByDistrict(page, perPage int, district, search string) ([]models.Facility, int64, error) {
+	return s.repo.ListByDistrict(page, perPage, district, search)
+}
+
+// ListDistinctDistricts returns district names present on at least one facility.
+func (s *FacilityService) ListDistinctDistricts() ([]string, error) {
+	return s.repo.ListDistinctDistricts()
+}
+
 func (s *FacilityService) Update(id uuid.UUID, input CreateFacilityInput, actorID uuid.UUID, ip, ua string) (*models.Facility, error) {
 	f, err := s.repo.FindByID(id)
 	if err != nil {

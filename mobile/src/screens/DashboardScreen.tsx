@@ -65,7 +65,9 @@ export function DashboardScreen() {
           <Text style={styles.welcomeText}>Welcome back,</Text>
           <Text style={styles.userName}>{user?.full_name || user?.email}</Text>
           <Text style={styles.facility}>
-            {user?.facility?.name || 'All Facilities'}
+            {user?.role === 'district_biostatistician' && user?.district
+              ? `District: ${user.district}`
+              : user?.facility?.name || 'All Facilities'}
           </Text>
         </View>
         <View style={styles.roleTag}>

@@ -10,6 +10,94 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// findDotenvFile walks from startDir upward looking for a file named .env.
+func findDotenvFile(startDir string) (string, error) {
+	dir, err := filepath.Abs(startDir)
+	if err != nil {
+		return "", err
+	}
+	for range 20 {
+		p := filepath.Join(dir, ".env")
+		fi, err := os.Stat(p)
+		if err == nil && !fi.IsDir() {
+			return filepath.Clean(p), nil
+		}
+		if err != nil && !os.IsNotExist(err) {
+			return "", err
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	return "", os.ErrNotExist
+}
+
+func tryLoadDotenvFrom(startDir string) bool {
+	p, err := findDotenvFile(startDir)
+	if err != nil {
+		return false
+	}
+	if err := godotenv.Load(p); err != nil {
+		log.Fatalf("Invalid .env file at %s: %v\n(dotenv only allows KEY=value lines; move SQL or other text out of .env.)", p, err)
+	}
+	return true
+}
+
+// loadDotenv loads the first valid .env: walk up from cwd, then walk up from
+// the executable directory (so `go build` in cmd/server and running ./server.exe
+// still finds the repo-root .env).
+func loadDotenv() bool {
+	if wd, err := os.Getwd(); err == nil {
+		if tryLoadDotenvFrom(wd) {
+			return true
+		}
+	}
+	if exe, err := os.Executable(); err == nil {
+		if tryLoadDotenvFrom(filepath.Dir(exe)) {
+			return true
+		}
+	}
+	return false
+}
+
+// WebAssetsRoot returns the directory that contains web/templates and web/static,
+// or "" if not found. Walks upward from cwd and from the executable directory
+// so the HTML UI works when the binary is run from cmd/server.
+func WebAssetsRoot() string {
+	try := func(startDir string) string {
+		dir, err := filepath.Abs(startDir)
+		if err != nil {
+			return ""
+		}
+		for range 20 {
+			tpl := filepath.Join(dir, "web", "templates")
+			fi, err := os.Stat(tpl)
+			if err == nil && fi.IsDir() {
+				return filepath.Clean(dir)
+			}
+			parent := filepath.Dir(dir)
+			if parent == dir {
+				break
+			}
+			dir = parent
+		}
+		return ""
+	}
+	if wd, err := os.Getwd(); err == nil {
+		if s := try(wd); s != "" {
+			return s
+		}
+	}
+	if exe, err := os.Executable(); err == nil {
+		if s := try(filepath.Dir(exe)); s != "" {
+			return s
+		}
+	}
+	return ""
+}
+
 type Config struct {
 	AppPort  string
 	AppEnv   string
@@ -34,14 +122,8 @@ type Config struct {
 }
 
 func Load() *Config {
-	if err := godotenv.Load(); err != nil {
-		if exe, e := os.Executable(); e == nil {
-			if err2 := godotenv.Load(filepath.Join(filepath.Dir(exe), ".env")); err2 != nil {
-				log.Fatal("No .env file found. Copy .env.example to .env and fill in your values.")
-			}
-		} else {
-			log.Fatal("No .env file found. Copy .env.example to .env and fill in your values.")
-		}
+	if !loadDotenv() {
+		log.Fatal("No .env file found. Copy .env.example to .env at the project root (or next to the server executable) and fill in your values.")
 	}
 
 	cfg := &Config{

@@ -24,6 +24,7 @@ interface Props {
   placeholder?: string;
   error?: string;
   required?: boolean;
+  disabled?: boolean;
 }
 
 export function AppSelect({
@@ -34,6 +35,7 @@ export function AppSelect({
   placeholder = 'Select...',
   error,
   required,
+  disabled,
 }: Props) {
   const [visible, setVisible] = useState(false);
   const selected = options.find((o) => o.value === value);
@@ -45,9 +47,10 @@ export function AppSelect({
         {required && <Text style={styles.required}> *</Text>}
       </Text>
       <TouchableOpacity
-        style={[styles.trigger, error && styles.triggerError]}
-        onPress={() => setVisible(true)}
+        style={[styles.trigger, disabled && styles.triggerDisabled, error && styles.triggerError]}
+        onPress={() => { if (!disabled) setVisible(true); }}
         activeOpacity={0.7}
+        disabled={!!disabled}
       >
         <Text style={[styles.triggerText, !selected && styles.placeholder]}>
           {selected ? selected.label : placeholder}
@@ -117,6 +120,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm + 4,
   },
   triggerError: { borderColor: colors.danger },
+  triggerDisabled: { opacity: 0.6 },
   triggerText: { fontSize: 15, color: colors.text, flex: 1 },
   placeholder: { color: colors.textMuted },
   error: { ...typography.caption, color: colors.danger, marginTop: spacing.xs },

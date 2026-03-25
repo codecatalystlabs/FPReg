@@ -3,7 +3,7 @@ package routes
 import (
 	"log"
 	"net/http"
-	"os"
+	"path/filepath"
 
 	"fpreg/internal/config"
 	"fpreg/internal/handler"
@@ -36,9 +36,12 @@ func Setup(r *gin.Engine, h Handlers, authSvc *service.AuthService, auditSvc *se
 		ginSwagger.URL(cfg.BasePath+"/swagger/doc.json"),
 	))
 
-	if _, err := os.Stat("web/templates"); err == nil {
-		base.Static("/static", "./web/static")
-		r.LoadHTMLGlob("web/templates/*")
+	webRoot := config.WebAssetsRoot()
+	if webRoot != "" {
+		staticDir := filepath.Join(webRoot, "web", "static")
+		tplPattern := filepath.Join(webRoot, "web", "templates", "*")
+		base.Static("/static", staticDir)
+		r.LoadHTMLGlob(tplPattern)
 
 		tplData := gin.H{"BasePath": cfg.BasePath}
 		base.GET("/", func(c *gin.Context) { c.HTML(http.StatusOK, "login.html", tplData) })
@@ -52,7 +55,7 @@ func Setup(r *gin.Engine, h Handlers, authSvc *service.AuthService, auditSvc *se
 		base.GET("/admin/audit-logs", func(c *gin.Context) { c.HTML(http.StatusOK, "audit_logs.html", tplData) })
 		base.GET("/reports/fp-monthly", func(c *gin.Context) { c.HTML(http.StatusOK, "fp_monthly_report.html", tplData) })
 	} else {
-		log.Println("Web templates not found, running in API-only mode")
+		log.Println("Web templates not found (no web/templates under cwd or above the executable), running in API-only mode")
 	}
 
 	api := base.Group("/api/v1")
@@ -89,21 +92,24 @@ func Setup(r *gin.Engine, h Handlers, authSvc *service.AuthService, auditSvc *se
 	facilities.Use(middleware.AuthRequired(authSvc))
 	{
 		facilities.GET("", h.Facility.List)
-		facilities.GET("/:id", h.Facility.GetByID)
 
 		facilityAdmin := facilities.Group("")
 		facilityAdmin.Use(middleware.RoleRequired(models.RoleSuperAdmin))
 		{
+			// Static path must be registered before /:id so "districts" is not parsed as UUID.
+			facilityAdmin.GET("/districts", h.Facility.ListDistricts)
 			facilityAdmin.POST("", h.Facility.Create)
 			facilityAdmin.PUT("/:id", h.Facility.Update)
 			facilityAdmin.DELETE("/:id", h.Facility.Delete)
 		}
+
+		facilities.GET("/:id", h.Facility.GetByID)
 	}
 
 	// Users
 	users := api.Group("/users")
 	users.Use(middleware.AuthRequired(authSvc))
-	users.Use(middleware.RoleRequired(models.RoleSuperAdmin, models.RoleFacilityAdmin))
+	users.Use(middleware.RoleRequired(models.RoleSuperAdmin, models.RoleFacilityAdmin, models.RoleDistrictBiostatistician))
 	{
 		users.GET("", h.User.List)
 		users.GET("/:id", h.User.GetByID)
@@ -138,7 +144,7 @@ func Setup(r *gin.Engine, h Handlers, authSvc *service.AuthService, auditSvc *se
 	// FP Monthly Reports (superadmin / facility_admin / district_biostatistician)
 	reports := api.Group("/reports/family-planning")
 	reports.Use(middleware.AuthRequired(authSvc))
-	reports.Use(middleware.RoleRequired(models.RoleSuperAdmin, models.RoleFacilityAdmin, models.RoleReviewer))
+		reports.Use(middleware.RoleRequired(models.RoleSuperAdmin, models.RoleFacilityAdmin, models.RoleReviewer, models.RoleDistrictBiostatistician))
 	{
 		reports.GET("/monthly", h.FPReport.Monthly)
 		reports.GET("/payload-preview", h.FPReport.PayloadPreview)

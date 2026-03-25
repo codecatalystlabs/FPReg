@@ -21,7 +21,7 @@
       <div class="nav-section admin-only">Administration</div>
       <a href="{{.BasePath}}/admin/users" class="nav-link admin-only"><i class="bi bi-people"></i> Users</a>
       <a href="{{.BasePath}}/admin/facilities" class="nav-link superadmin-only"><i class="bi bi-hospital"></i> Facilities</a>
-      <a href="{{.BasePath}}/admin/audit-logs" class="nav-link admin-only"><i class="bi bi-shield-check"></i> Audit Logs</a>
+      <a href="{{.BasePath}}/admin/audit-logs" class="nav-link admin-only facility-admin-audit"><i class="bi bi-shield-check"></i> Audit Logs</a>
     </nav>
     <div class="user-info">
       <div class="fw-semibold user-name"></div>
@@ -62,6 +62,22 @@
           </div>
         </div>
 
+        <!-- District biostatistician: choose which facility this registration belongs to -->
+        <div class="form-section d-none" id="district_entry_facility_section">
+          <div class="section-header"><i class="bi bi-hospital"></i> Reporting facility</div>
+          <div class="section-body">
+            <div class="row g-3">
+              <div class="col-md-8">
+                <label for="entry_facility_id" class="form-label">Facility *</label>
+                <select class="form-select" id="entry_facility_id">
+                  <option value="">Select facility in your district…</option>
+                </select>
+                <div class="form-text">Registrations are stored under the selected facility.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Section 2: Client Information (Cols 3-7) -->
         <div class="form-section">
           <div class="section-header"><i class="bi bi-person"></i> Client Information <span class="badge bg-light text-dark">Columns 2–7</span></div>
@@ -94,7 +110,7 @@
               </div>
               <div class="col-md-2">
                 <label for="age" class="form-label">Age (years) *</label>
-                <input type="number" class="form-control" id="age" min="0" max="120" required>
+                <input type="number" class="form-control" id="age" min="10" max="120" required>
               </div>
             </div>
             <hr class="my-3">
@@ -369,13 +385,13 @@
           <div class="section-body">
             <div class="row g-3">
               <div class="col-md-4">
-                <label for="postpartum_fp_timing" class="form-label">Post-Partum FP Timing</label>
+                <label for="postpartum_fp_timing" class="form-label">Post-Partum FP Timing (either this or post-abortion)</label>
                 <select class="form-select" id="postpartum_fp_timing">
                   <option value="">Not applicable</option>
                 </select>
               </div>
               <div class="col-md-4">
-                <label for="post_abortion_fp_timing" class="form-label">Post-Abortion FP Timing</label>
+                <label for="post_abortion_fp_timing" class="form-label">Post-Abortion FP Timing (either this or post-partum)</label>
                 <select class="form-select" id="post_abortion_fp_timing">
                   <option value="">Not applicable</option>
                 </select>

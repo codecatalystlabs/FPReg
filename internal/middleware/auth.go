@@ -36,6 +36,9 @@ func AuthRequired(authSvc *service.AuthService) gin.HandlerFunc {
 		if claims.FacilityID != nil {
 			c.Set("facility_id", *claims.FacilityID)
 		}
+		if strings.TrimSpace(claims.District) != "" {
+			c.Set("user_district", strings.TrimSpace(claims.District))
+		}
 		c.Next()
 	}
 }
@@ -61,7 +64,7 @@ func RoleRequired(roles ...models.Role) gin.HandlerFunc {
 func FacilityScoped() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		role, _ := c.Get("user_role")
-		if role == models.RoleSuperAdmin {
+		if role == models.RoleSuperAdmin || role == models.RoleDistrictBiostatistician {
 			c.Next()
 			return
 		}
@@ -100,10 +103,23 @@ func GetScopedFacilityID(c *gin.Context) *uuid.UUID {
 		}
 		return nil
 	}
+	if role == models.RoleDistrictBiostatistician {
+		return nil
+	}
 	v, exists := c.Get("facility_id")
 	if !exists {
 		return nil
 	}
 	id := v.(uuid.UUID)
 	return &id
+}
+
+// GetUserDistrict returns the district scope for district_biostatistician (from JWT claims).
+func GetUserDistrict(c *gin.Context) string {
+	v, ok := c.Get("user_district")
+	if !ok {
+		return ""
+	}
+	s, _ := v.(string)
+	return strings.TrimSpace(s)
 }

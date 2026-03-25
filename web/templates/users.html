@@ -20,7 +20,7 @@
       <div class="nav-section admin-only">Administration</div>
       <a href="{{.BasePath}}/admin/users" class="nav-link admin-only"><i class="bi bi-people"></i> Users</a>
       <a href="{{.BasePath}}/admin/facilities" class="nav-link superadmin-only"><i class="bi bi-hospital"></i> Facilities</a>
-      <a href="{{.BasePath}}/admin/audit-logs" class="nav-link admin-only"><i class="bi bi-shield-check"></i> Audit Logs</a>
+      <a href="{{.BasePath}}/admin/audit-logs" class="nav-link admin-only facility-admin-audit"><i class="bi bi-shield-check"></i> Audit Logs</a>
     </nav>
     <div class="user-info">
       <div class="fw-semibold user-name"></div>
@@ -99,10 +99,18 @@
                 <option value="facility_user">Facility User</option>
                 <option value="facility_admin">Facility Admin</option>
                 <option value="reviewer">Reviewer</option>
+                <option value="district_biostatistician">District Biostatistician</option>
                 <option value="superadmin">Super Admin</option>
               </select>
             </div>
-            <div class="mb-3">
+            <div class="mb-3 d-none" id="u_district_wrap">
+              <label class="form-label">District *</label>
+              <select class="form-select" id="u_district">
+                <option value="">Select district…</option>
+              </select>
+              <div class="form-text">Districts come from facilities in the system. District biostatisticians are not linked to a single facility.</div>
+            </div>
+            <div class="mb-3" id="u_facility_wrap">
               <label class="form-label">Facility</label>
               <select class="form-select" id="u_facility_id">
                 <option value="">No facility (Super Admin only)</option>
@@ -140,7 +148,7 @@
               <td class="fw-semibold">${u.full_name}</td>
               <td>${u.email}</td>
               <td><span class="badge bg-secondary text-capitalize">${u.role}</span></td>
-              <td>${u.facility ? u.facility.name : '–'}</td>
+              <td>${u.facility ? u.facility.name : (u.district ? ('District: ' + u.district) : '–')}</td>
               <td>${u.is_active ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-danger">Inactive</span>'}</td>
               <td>
                 ${u.is_active ? `<button class="btn btn-sm btn-outline-primary me-1" onclick="editUser('${u.id}')">Edit</button>` : ''}
@@ -165,14 +173,60 @@
         } catch (e) {}
       }
 
+      let districtsList = [];
+      async function loadDistrictsDropdown() {
+        if (!App.user || App.user.role !== 'superadmin') return;
+        try {
+          const data = await App.api('GET', '/facilities/districts');
+          districtsList = data.data || [];
+          const sel = document.getElementById('u_district');
+          const prev = sel.value;
+          sel.innerHTML = '<option value="">Select district…</option>';
+          districtsList.forEach((d) => {
+            const opt = document.createElement('option');
+            opt.value = d;
+            opt.textContent = d;
+            sel.appendChild(opt);
+          });
+          if (prev && Array.from(sel.options).some((o) => o.value === prev)) {
+            sel.value = prev;
+          }
+        } catch (e) {
+          const sel = document.getElementById('u_district');
+          sel.innerHTML = '<option value="">Select district…</option>';
+        }
+      }
+
       await loadFacilitiesDropdown();
+      await loadDistrictsDropdown();
       await loadUsers();
+
+      function syncUserRoleFields() {
+        const role = document.getElementById('u_role').value;
+        const distWrap = document.getElementById('u_district_wrap');
+        const facWrap = document.getElementById('u_facility_wrap');
+        if (role === 'district_biostatistician') {
+          distWrap.classList.remove('d-none');
+          facWrap.classList.add('d-none');
+        } else {
+          distWrap.classList.add('d-none');
+          facWrap.classList.remove('d-none');
+        }
+      }
+      document.getElementById('u_role').addEventListener('change', syncUserRoleFields);
 
       // Facility admin: hide higher roles in dropdown
       const currentRole = App.user && App.user.role;
       if (currentRole === 'facility_admin') {
         const roleSelect = document.getElementById('u_role');
-        ['superadmin', 'facility_admin'].forEach(val => {
+        ['superadmin', 'facility_admin', 'district_biostatistician'].forEach(val => {
+          const opt = Array.from(roleSelect.options).find(o => o.value === val);
+          if (opt) roleSelect.removeChild(opt);
+        });
+      }
+      if (currentRole === 'district_biostatistician') {
+        const roleSelect = document.getElementById('u_role');
+        ['superadmin', 'facility_admin', 'district_biostatistician'].forEach(val => {
           const opt = Array.from(roleSelect.options).find(o => o.value === val);
           if (opt) roleSelect.removeChild(opt);
         });
@@ -185,7 +239,10 @@
         document.getElementById('userForm').reset();
         document.getElementById('u_password').required = true;
         document.getElementById('u_password_help').classList.add('d-none');
+        document.getElementById('u_district').value = '';
+        syncUserRoleFields();
         loadFacilitiesDropdown();
+        loadDistrictsDropdown();
       }
 
       window.editUser = async (id) => {
@@ -200,8 +257,19 @@
           document.getElementById('u_password').value = '';
           document.getElementById('u_password').required = false;
           document.getElementById('u_password_help').classList.remove('d-none');
-          document.getElementById('u_role').value = u.role || 'facility_user';
-          const sel = document.getElementById('u_facility_id');
+        document.getElementById('u_role').value = u.role || 'facility_user';
+        syncUserRoleFields();
+        await loadDistrictsDropdown();
+        const distSel = document.getElementById('u_district');
+        const dist = (u.district || '').trim();
+        if (dist && !Array.from(distSel.options).some((o) => o.value === dist)) {
+          const opt = document.createElement('option');
+          opt.value = dist;
+          opt.textContent = dist + ' (current)';
+          distSel.appendChild(opt);
+        }
+        distSel.value = dist || '';
+        const sel = document.getElementById('u_facility_id');
           sel.innerHTML = '<option value="">No facility (Super Admin only)</option>';
           const currentInList = facilitiesList.some(f => f.id === u.facility_id);
           if (u.facility_id && u.facility && !currentInList) {
@@ -221,12 +289,22 @@
         e.preventDefault();
         const id = document.getElementById('u_id').value;
         const facilityVal = document.getElementById('u_facility_id').value;
+        const roleVal = document.getElementById('u_role').value;
         const body = {
           full_name: document.getElementById('u_full_name').value.trim(),
           email: document.getElementById('u_email').value.trim(),
-          role: document.getElementById('u_role').value,
+          role: roleVal,
           facility_id: facilityVal || null,
+          district: '',
         };
+        if (roleVal === 'district_biostatistician') {
+          body.district = document.getElementById('u_district').value.trim();
+          body.facility_id = null;
+          if (!body.district) {
+            App.showToast('District is required for district biostatistician', 'error');
+            return;
+          }
+        }
         const pwd = document.getElementById('u_password').value;
         if (pwd) body.password = pwd;
         try {

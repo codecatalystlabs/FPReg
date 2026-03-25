@@ -1,4 +1,4 @@
-export type Role = 'superadmin' | 'facility_admin' | 'facility_user' | 'reviewer';
+export type Role = 'superadmin' | 'facility_admin' | 'facility_user' | 'reviewer' | 'district_biostatistician';
 
 export interface Facility {
   id: string;
@@ -21,6 +21,8 @@ export interface User {
   role: Role;
   facility_id?: string;
   facility?: Facility;
+  /** Set for district_biostatistician (no facility_id). */
+  district?: string;
   is_active: boolean;
 }
 

@@ -1,9 +1,12 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
+	"sort"
 
 	"fpreg/internal/middleware"
+	"fpreg/internal/models"
 	"fpreg/internal/repository"
 	"fpreg/internal/service"
 	"fpreg/internal/utils"
@@ -11,6 +14,68 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
+
+type FPReportSyncRequest struct {
+	Period      string   `json:"period"`
+	FacilityIDs []string `json:"facility_ids"`
+	Force       bool     `json:"force"`
+}
+
+type FPReportHandler struct {
+	reportSvc    *service.FPReportService
+	facilityRepo *repository.FacilityRepository
+	dhisRepo     *repository.DHIS2Repository
+	syncSvc      *service.DHIS2SyncService
+}
+
+func NewFPReportHandler(
+	reportSvc *service.FPReportService,
+	facilityRepo *repository.FacilityRepository,
+	dhisRepo *repository.DHIS2Repository,
+	syncSvc *service.DHIS2SyncService,
+) *FPReportHandler {
+	return &FPReportHandler{
+		reportSvc:    reportSvc,
+		facilityRepo: facilityRepo,
+		dhisRepo:     dhisRepo,
+		syncSvc:      syncSvc,
+	}
+}
+
+func (h *FPReportHandler) resolveReportFacilityIDs(c *gin.Context, explicit []uuid.UUID) ([]uuid.UUID, error) {
+	roleVal, _ := c.Get("user_role")
+	role, _ := roleVal.(models.Role)
+
+	if role == models.RoleSuperAdmin {
+		if len(explicit) > 0 {
+			return explicit, nil
+		}
+		return []uuid.UUID{}, nil
+	}
+
+	if scoped := middleware.GetScopedFacilityID(c); scoped != nil {
+		return []uuid.UUID{*scoped}, nil
+	}
+
+	if role == models.RoleDistrictBiostatistician {
+		d := middleware.GetUserDistrict(c)
+		if d == "" {
+			return nil, errors.New("no district assigned to your account")
+		}
+		if len(explicit) > 0 {
+			for _, id := range explicit {
+				ok, err := h.facilityRepo.FacilityBelongsToDistrict(id, d)
+				if err != nil || !ok {
+					return nil, errors.New("one or more facilities are not in your district")
+				}
+			}
+			return explicit, nil
+		}
+		return h.facilityRepo.FindIDsByDistrict(d)
+	}
+
+	return nil, errors.New("forbidden")
+}
 
 // MonthlyReport godoc
 // @Summary      Monthly FP methods report
@@ -28,17 +93,16 @@ func (h *FPReportHandler) Monthly(c *gin.Context) {
 		return
 	}
 
-	var facilityIDs []uuid.UUID
+	var explicit []uuid.UUID
 	if fid := c.Query("facility_id"); fid != "" {
 		if id, err := uuid.Parse(fid); err == nil {
-			facilityIDs = append(facilityIDs, id)
+			explicit = append(explicit, id)
 		}
 	}
-
-	// Scope facilities for non-superadmin
-	if scoped := middleware.GetScopedFacilityID(c); scoped != nil {
-		// Non-superadmin are already scoped to a single facility
-		facilityIDs = []uuid.UUID{*scoped}
+	facilityIDs, err := h.resolveReportFacilityIDs(c, explicit)
+	if err != nil {
+		utils.RespondError(c, http.StatusForbidden, err.Error())
+		return
 	}
 
 	rows, err := h.reportSvc.AggregateForPeriod(period, facilityIDs)
@@ -91,39 +155,34 @@ func (h *FPReportHandler) Monthly(c *gin.Context) {
 		})
 	}
 
+	list := make([]facilityReport, 0, len(facMap))
+	for _, fr := range facMap {
+		list = append(list, *fr)
+	}
+	// Stable, useful order: most non-zero activity first (UI used to pick random map key).
+	sort.Slice(list, func(i, j int) bool {
+		ti, tj := 0, 0
+		for _, c := range list[i].Cells {
+			ti += c.Value
+		}
+		for _, c := range list[j].Cells {
+			tj += c.Value
+		}
+		if ti != tj {
+			return ti > tj
+		}
+		return list[i].FacilityName < list[j].FacilityName
+	})
+
 	out := struct {
 		Period     string           `json:"period"`
 		Facilities []facilityReport `json:"facilities"`
 	}{
 		Period:     period,
-		Facilities: []facilityReport{},
-	}
-	for _, fr := range facMap {
-		out.Facilities = append(out.Facilities, *fr)
+		Facilities: list,
 	}
 
 	utils.RespondOK(c, out)
-}
-
-type FPReportHandler struct {
-	reportSvc    *service.FPReportService
-	facilityRepo *repository.FacilityRepository
-	dhisRepo     *repository.DHIS2Repository
-	syncSvc      *service.DHIS2SyncService
-}
-
-func NewFPReportHandler(
-	reportSvc *service.FPReportService,
-	facilityRepo *repository.FacilityRepository,
-	dhisRepo *repository.DHIS2Repository,
-	syncSvc *service.DHIS2SyncService,
-) *FPReportHandler {
-	return &FPReportHandler{
-		reportSvc:    reportSvc,
-		facilityRepo: facilityRepo,
-		dhisRepo:     dhisRepo,
-		syncSvc:      syncSvc,
-	}
 }
 
 // PayloadPreview godoc
@@ -142,14 +201,16 @@ func (h *FPReportHandler) PayloadPreview(c *gin.Context) {
 		return
 	}
 
-	var facilityIDs []uuid.UUID
+	var explicit []uuid.UUID
 	if fid := c.Query("facility_id"); fid != "" {
 		if id, err := uuid.Parse(fid); err == nil {
-			facilityIDs = append(facilityIDs, id)
+			explicit = append(explicit, id)
 		}
 	}
-	if scoped := middleware.GetScopedFacilityID(c); scoped != nil {
-		facilityIDs = []uuid.UUID{*scoped}
+	facilityIDs, err := h.resolveReportFacilityIDs(c, explicit)
+	if err != nil {
+		utils.RespondError(c, http.StatusForbidden, err.Error())
+		return
 	}
 
 	previews, err := h.syncSvc.BuildPreview(period, facilityIDs)
@@ -166,36 +227,33 @@ func (h *FPReportHandler) PayloadPreview(c *gin.Context) {
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
-// @Param        body body struct{Period string `+"`json:\"period\"`"+`; FacilityIDs []string `+"`json:\"facility_ids\"`"+`; Force bool `+"`json:\"force\"`"+`} true "Sync payload"
+// @Param        body body handler.FPReportSyncRequest true "Sync payload"
 // @Success      200  {object} utils.APIResponse
 // @Router       /api/v1/reports/family-planning/sync [post]
 func (h *FPReportHandler) Sync(c *gin.Context) {
-	var req struct {
-		Period      string   `json:"period"`
-		FacilityIDs []string `json:"facility_ids"`
-		Force       bool     `json:"force"`
-	}
+	var req FPReportSyncRequest
 	if err := c.ShouldBindJSON(&req); err != nil || len(req.Period) != 6 {
 		utils.RespondError(c, http.StatusBadRequest, "Invalid body or period")
 		return
 	}
 
-	var facilityIDs []uuid.UUID
+	var explicit []uuid.UUID
 	for _, s := range req.FacilityIDs {
 		if id, err := uuid.Parse(s); err == nil {
-			facilityIDs = append(facilityIDs, id)
+			explicit = append(explicit, id)
 		}
 	}
-	if scoped := middleware.GetScopedFacilityID(c); scoped != nil {
-		// Non-superadmin can only sync their own facility
-		facilityIDs = []uuid.UUID{*scoped}
+	facilityIDs, err := h.resolveReportFacilityIDs(c, explicit)
+	if err != nil {
+		utils.RespondError(c, http.StatusForbidden, err.Error())
+		return
 	}
 
 	userID := middleware.GetUserID(c)
-	logs, err := h.syncSvc.Sync(req.Period, facilityIDs, req.Force, userID.String())
+	outcome, err := h.syncSvc.Sync(req.Period, facilityIDs, req.Force, userID.String())
 	if err != nil {
 		utils.RespondError(c, http.StatusBadRequest, err.Error())
 		return
 	}
-	utils.RespondOK(c, logs)
+	utils.RespondOK(c, outcome)
 }
