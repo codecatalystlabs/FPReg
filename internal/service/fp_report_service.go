@@ -66,10 +66,14 @@ func (s *FPReportService) AggregateForPeriod(period string, facilityIDs []uuid.U
 			if mk == "" {
 				continue
 			}
+			n := contributionAmount(&r, mk)
+			if n <= 0 {
+				continue
+			}
 			methodCode, subgroup := splitMethodSubgroup(mk)
 			localKey := buildLocalIndicatorKey(methodCode, subgroup, visitType, ageGroup)
 			k := key{FacilityID: r.FacilityID, LocalIndicatorKey: localKey}
-			agg[k]++
+			agg[k] += n
 		}
 	}
 
@@ -96,12 +100,13 @@ func periodBounds(period string) (time.Time, time.Time, error) {
 	return start, end, nil
 }
 
+// classifyAge maps client age to HMIS/DHIS2 age bands (see category combos: <15Yrs, 15-19Yrs, …).
 func classifyAge(age int) string {
 	switch {
 	case age < 15:
 		return "BELOW_15"
 	case age >= 15 && age <= 19:
-		return "16_19"
+		return "15_19"
 	case age >= 20 && age <= 24:
 		return "20_24"
 	case age >= 25 && age <= 49:
@@ -162,6 +167,32 @@ func determineMethods(r *models.FPRegistration) []string {
 	return out
 }
 
+// contributionAmount is the quantity to add to the monthly aggregate for one visit row (cycles, doses, units, or 1 for boolean methods).
+func contributionAmount(r *models.FPRegistration, mk string) int {
+	switch mk {
+	case "FP01":
+		return r.PillsCOCCycles
+	case "FP02":
+		return r.PillsPOPCycles
+	case "FP03":
+		return r.PillsECPPieces
+	case "FP04":
+		return r.InjectableDMPAIMDoses
+	case "FP05_PA":
+		return r.InjectableDMPASCPADoses
+	case "FP05_SI":
+		return r.InjectableDMPASCSIDoses
+	case "FP13":
+		return r.CondomsFemaleUnits
+	case "FP14":
+		return r.CondomsMaleUnits
+	case "FP06", "FP07", "FP08", "FP09", "FP10", "FP11", "FP12":
+		return 1
+	default:
+		return 0
+	}
+}
+
 func splitMethodSubgroup(m string) (methodCode, subgroup string) {
 	// FP05_PA => FP05, PA
 	if len(m) > 5 && m[:4] == "FP05" {
@@ -193,7 +224,7 @@ func FPReportChecksum(period, orgUnit, localKey string, value int) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-// ParseLocalIndicatorKey splits keys like FP01_NEW_BELOW_15 or FP05_PA_REVISIT_20_24.
+// ParseLocalIndicatorKey splits keys like FP01_NEW_BELOW_15, FP01_NEW_15_19, or FP05_PA_REVISIT_20_24.
 func ParseLocalIndicatorKey(key string) (methodCode, visitType, ageGroup string) {
 	parts := strings.Split(key, "_")
 	if len(parts) < 3 {

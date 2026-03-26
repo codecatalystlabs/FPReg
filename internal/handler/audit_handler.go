@@ -3,6 +3,8 @@ package handler
 import (
 	"net/http"
 
+	"fpreg/internal/middleware"
+	"fpreg/internal/models"
 	"fpreg/internal/repository"
 	"fpreg/internal/service"
 	"fpreg/internal/utils"
@@ -12,11 +14,13 @@ import (
 )
 
 type AuditHandler struct {
-	auditSvc *service.AuditService
+	auditSvc     *service.AuditService
+	facilityRepo *repository.FacilityRepository
+	userSvc      *service.UserService
 }
 
-func NewAuditHandler(auditSvc *service.AuditService) *AuditHandler {
-	return &AuditHandler{auditSvc: auditSvc}
+func NewAuditHandler(auditSvc *service.AuditService, facilityRepo *repository.FacilityRepository, userSvc *service.UserService) *AuditHandler {
+	return &AuditHandler{auditSvc: auditSvc, facilityRepo: facilityRepo, userSvc: userSvc}
 }
 
 // ListAuditLogs godoc
@@ -42,16 +46,54 @@ func (h *AuditHandler) List(c *gin.Context) {
 		DateFrom: c.Query("date_from"),
 		DateTo:   c.Query("date_to"),
 	}
-	if uid := c.Query("user_id"); uid != "" {
-		id, err := uuid.Parse(uid)
-		if err == nil {
+	roleVal, _ := c.Get("user_role")
+	actorRole, _ := roleVal.(models.Role)
+	if actorRole == models.RoleDistrictBiostatistician {
+		d := middleware.GetUserDistrict(c)
+		if d == "" {
+			utils.RespondError(c, http.StatusForbidden, "No district assigned to your account")
+			return
+		}
+		if uid := c.Query("user_id"); uid != "" {
+			id, err := uuid.Parse(uid)
+			if err != nil {
+				utils.RespondError(c, http.StatusBadRequest, "Invalid user_id")
+				return
+			}
+			if !h.userSvc.CanActorAccessUser(middleware.GetUserID(c), id) {
+				utils.RespondForbidden(c)
+				return
+			}
 			f.UserID = &id
 		}
-	}
-	if fid := c.Query("facility_id"); fid != "" {
-		id, err := uuid.Parse(fid)
-		if err == nil {
+		if fid := c.Query("facility_id"); fid != "" {
+			id, err := uuid.Parse(fid)
+			if err != nil {
+				utils.RespondError(c, http.StatusBadRequest, "Invalid facility_id")
+				return
+			}
+			ok, ferr := h.facilityRepo.FacilityBelongsToDistrict(id, d)
+			if ferr != nil || !ok {
+				utils.RespondForbidden(c)
+				return
+			}
 			f.FacilityID = &id
+			f.DistrictScope = ""
+		} else if f.UserID == nil {
+			f.DistrictScope = d
+		}
+	} else {
+		if uid := c.Query("user_id"); uid != "" {
+			id, err := uuid.Parse(uid)
+			if err == nil {
+				f.UserID = &id
+			}
+		}
+		if fid := c.Query("facility_id"); fid != "" {
+			id, err := uuid.Parse(fid)
+			if err == nil {
+				f.FacilityID = &id
+			}
 		}
 	}
 

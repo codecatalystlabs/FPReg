@@ -17,6 +17,8 @@
       <a href="{{.BasePath}}/register" class="nav-link"><i class="bi bi-plus-circle"></i> New Entry</a>
       <a href="{{.BasePath}}/submissions" class="nav-link"><i class="bi bi-table"></i> Submissions</a>
       <a href="{{.BasePath}}/guide" class="nav-link"><i class="bi bi-book"></i> Guide</a>
+      <div class="nav-section">Reports</div>
+      <a href="{{.BasePath}}/reports/fp-monthly" class="nav-link"><i class="bi bi-graph-up"></i> FP Monthly Report</a>
       <div class="nav-section admin-only">Administration</div>
       <a href="{{.BasePath}}/admin/users" class="nav-link admin-only"><i class="bi bi-people"></i> Users</a>
       <a href="{{.BasePath}}/admin/facilities" class="nav-link superadmin-only"><i class="bi bi-hospital"></i> Facilities</a>
@@ -372,10 +374,10 @@
               <thead><tr><th>Role</th><th>Can See</th><th>Can Do</th></tr></thead>
               <tbody>
                 <tr><td><code>superadmin</code></td><td>All facilities, all data</td><td>Everything: manage facilities, users, view audit logs, all registrations</td></tr>
-                <tr><td><code>facility_admin</code></td><td>Own facility data only</td><td>Create/edit registrations, manage facility users, view facility audit logs</td></tr>
-                <tr><td><code>facility_user</code></td><td>Own facility data only</td><td>Create and view registrations for their facility</td></tr>
-                <tr><td><code>reviewer</code></td><td>Own facility data only</td><td>View registrations (read-only access for supervision)</td></tr>
-                <tr><td><code>district_biostatistician</code></td><td>All facilities in assigned district (no single facility)</td><td>Create/view registrations (choose facility per entry), manage users (facility user/reviewer only) in district, FP reports for district; no audit log or facility master-data admin</td></tr>
+                <tr><td><code>facility_admin</code></td><td>Own facility data only</td><td>Create/edit registrations, manage facility users, monthly FP report (facility locked), DHIS2 preview/sync for their site, facility audit logs</td></tr>
+                <tr><td><code>facility_user</code></td><td>Own facility data only</td><td>Create and view registrations; monthly FP report for their facility only (read-only; no DHIS2 preview or sync)</td></tr>
+                <tr><td><code>reviewer</code></td><td>Own facility data only</td><td>View registrations; monthly FP report for their facility; DHIS2 preview only (no sync)</td></tr>
+                <tr><td><code>district_biostatistician</code></td><td>Facilities and data in assigned district only</td><td>Create/view registrations (pick facility per entry), manage users (facility user/reviewer only), monthly FP reports &amp; DHIS2 sync for district, audit logs (district-scoped); cannot manage facility master data</td></tr>
               </tbody>
             </table>
           </div>
@@ -417,7 +419,7 @@
                 <tr><td>Option Sets</td><td><code>/api/v1/option-sets</code></td><td>Yes</td></tr>
                 <tr><td>Facilities</td><td><code>/api/v1/facilities</code></td><td>Yes</td></tr>
                 <tr><td>Users</td><td><code>/api/v1/users</code></td><td>Yes (admin)</td></tr>
-                <tr><td>Audit Logs</td><td><code>/api/v1/audit-logs</code></td><td>Yes (admin)</td></tr>
+                <tr><td>Audit Logs</td><td><code>/api/v1/audit-logs</code></td><td>Yes (superadmin, facility admin, district biostatistician — district-scoped)</td></tr>
               </tbody>
             </table>
             <p>Full interactive API documentation is available at <a href="{{.BasePath}}/swagger/index.html" target="_blank">{{.BasePath}}/swagger/index.html</a>.</p>

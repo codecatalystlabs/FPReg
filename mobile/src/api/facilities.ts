@@ -24,4 +24,10 @@ export const facilitiesApi = {
     const { data } = await api.get<ApiResponse<Facility>>(`/facilities/${id}`);
     return data.data!;
   },
+
+  /** Superadmin only — used when creating a district biostatistician account. */
+  async listDistricts(): Promise<string[]> {
+    const { data } = await api.get<ApiResponse<string[]>>('/facilities/districts');
+    return data.data ?? [];
+  },
 };

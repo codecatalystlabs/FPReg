@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"strings"
+
 	"fpreg/internal/models"
 
 	"github.com/google/uuid"
@@ -20,12 +22,13 @@ func (r *AuditRepository) Create(log *models.AuditLog) error {
 }
 
 type AuditFilter struct {
-	UserID     *uuid.UUID
-	FacilityID *uuid.UUID
-	Action     string
-	Entity     string
-	DateFrom   string
-	DateTo     string
+	UserID        *uuid.UUID
+	FacilityID    *uuid.UUID
+	DistrictScope string // non-empty: only logs tied to facilities in this district or users assigned to that district
+	Action        string
+	Entity        string
+	DateFrom      string
+	DateTo        string
 }
 
 func (r *AuditRepository) List(page, perPage int, f AuditFilter) ([]models.AuditLog, int64, error) {
@@ -39,6 +42,18 @@ func (r *AuditRepository) List(page, perPage int, f AuditFilter) ([]models.Audit
 	}
 	if f.FacilityID != nil {
 		q = q.Where("facility_id = ?", *f.FacilityID)
+	}
+	if strings.TrimSpace(f.DistrictScope) != "" {
+		d := strings.TrimSpace(f.DistrictScope)
+		q = q.Where(`(
+			facility_id IN (SELECT id FROM facilities WHERE LOWER(TRIM(district)) = LOWER(?))
+			OR user_id IN (
+				SELECT id FROM users WHERE facility_id IN (
+					SELECT id FROM facilities WHERE LOWER(TRIM(district)) = LOWER(?)
+				)
+				OR (role = ? AND LOWER(TRIM(COALESCE(district, ''))) = LOWER(?))
+			)
+		)`, d, d, models.RoleDistrictBiostatistician, d)
 	}
 	if f.Action != "" {
 		q = q.Where("action = ?", f.Action)

@@ -133,21 +133,26 @@ func Setup(r *gin.Engine, h Handlers, authSvc *service.AuthService, auditSvc *se
 		), h.Registration.Delete)
 	}
 
-	// Audit logs (superadmin / facility_admin only)
+	// Audit logs (scoped: district biostatistician sees own district only)
 	auditLogs := api.Group("/audit-logs")
 	auditLogs.Use(middleware.AuthRequired(authSvc))
-	auditLogs.Use(middleware.RoleRequired(models.RoleSuperAdmin, models.RoleFacilityAdmin))
+	auditLogs.Use(middleware.RoleRequired(models.RoleSuperAdmin, models.RoleFacilityAdmin, models.RoleDistrictBiostatistician))
 	{
 		auditLogs.GET("", h.Audit.List)
 	}
 
-	// FP Monthly Reports (superadmin / facility_admin / district_biostatistician)
+	// FP monthly report: all authenticated facility roles may view; DHIS2 POST limited to admins / district biostat.
 	reports := api.Group("/reports/family-planning")
 	reports.Use(middleware.AuthRequired(authSvc))
-		reports.Use(middleware.RoleRequired(models.RoleSuperAdmin, models.RoleFacilityAdmin, models.RoleReviewer, models.RoleDistrictBiostatistician))
 	{
-		reports.GET("/monthly", h.FPReport.Monthly)
-		reports.GET("/payload-preview", h.FPReport.PayloadPreview)
-		reports.POST("/sync", h.FPReport.Sync)
+		reportReaders := middleware.RoleRequired(
+			models.RoleSuperAdmin, models.RoleFacilityAdmin, models.RoleFacilityUser,
+			models.RoleReviewer, models.RoleDistrictBiostatistician,
+		)
+		reports.GET("/monthly", reportReaders, h.FPReport.Monthly)
+		reports.GET("/payload-preview", reportReaders, h.FPReport.PayloadPreview)
+		reports.POST("/sync", middleware.RoleRequired(
+			models.RoleSuperAdmin, models.RoleFacilityAdmin, models.RoleDistrictBiostatistician,
+		), h.FPReport.Sync)
 	}
 }

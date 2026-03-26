@@ -8,15 +8,20 @@ import type { FPRegistration } from '../types';
 interface Props {
   item: FPRegistration;
   onPress: () => void;
+  /** Show which facility owns the row (multi-facility roles). */
+  showFacility?: boolean;
 }
 
-export function SubmissionListItem({ item, onPress }: Props) {
+export function SubmissionListItem({ item, onPress, showFacility }: Props) {
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.row}>
         <View style={styles.left}>
           <Text style={styles.name}>{item.surname} {item.given_name}</Text>
           <Text style={styles.clientNum}>{item.client_number || 'Visitor'}</Text>
+          {showFacility && item.facility && (
+            <Text style={styles.facility}>{item.facility.name}</Text>
+          )}
         </View>
         <View style={styles.right}>
           <StatusBadge
@@ -64,6 +69,7 @@ const styles = StyleSheet.create({
   right: { marginLeft: spacing.sm },
   name: { ...typography.h4, color: colors.text },
   clientNum: { ...typography.caption, color: colors.textMuted, marginTop: 2 },
+  facility: { ...typography.caption, color: colors.primary, marginTop: 4, fontWeight: '600' },
   meta: {
     flexDirection: 'row',
     alignItems: 'center',

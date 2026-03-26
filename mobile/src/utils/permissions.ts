@@ -21,7 +21,7 @@ export function canManageUsers(role: Role): boolean {
 }
 
 export function canViewAuditLogs(role: Role): boolean {
-  return ADMIN_ROLES.includes(role);
+  return [...ADMIN_ROLES, 'district_biostatistician'].includes(role);
 }
 
 export function isAdmin(role: Role): boolean {

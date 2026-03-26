@@ -19,7 +19,7 @@ func fpMethodVariants() []struct{ Base, Sub string } {
 // EnumerateAllLocalIndicatorKeys returns every local_indicator_key the monthly FP aggregate can emit.
 func EnumerateAllLocalIndicatorKeys() []string {
 	visits := []string{"NEW", "REVISIT"}
-	ages := []string{"BELOW_15", "16_19", "20_24", "25_49", "50_PLUS"}
+	ages := []string{"BELOW_15", "15_19", "20_24", "25_49", "50_PLUS"}
 	var keys []string
 	for _, mv := range fpMethodVariants() {
 		for _, vt := range visits {

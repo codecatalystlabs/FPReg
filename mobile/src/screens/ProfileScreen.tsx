@@ -1,13 +1,20 @@
 import React from 'react';
 import { View, Text, ScrollView, StyleSheet, Alert } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { AppCard } from '../components/AppCard';
 import { AppButton } from '../components/AppButton';
 import { useAuthStore } from '../store/authStore';
+import { canManageUsers } from '../utils/permissions';
 import { colors, spacing, typography, radii } from '../theme';
+import type { MainStackParamList } from '../navigation/MainNavigator';
+
+type NavProp = NativeStackNavigationProp<MainStackParamList>;
 
 export function ProfileScreen() {
   const { user, logout } = useAuthStore();
+  const nav = useNavigation<NavProp>();
 
   const handleLogout = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
@@ -32,7 +39,11 @@ export function ProfileScreen() {
       {/* Details */}
       <AppCard>
         <DetailRow icon="shield-checkmark" label="Role" value={user.role.replace('_', ' ')} />
-        <DetailRow icon="business" label="Facility" value={user.facility?.name || 'All Facilities'} />
+        {user.role === 'district_biostatistician' && user.district ? (
+          <DetailRow icon="map" label="Assigned district" value={user.district} />
+        ) : (
+          <DetailRow icon="business" label="Facility" value={user.facility?.name || 'All Facilities'} />
+        )}
         {user.facility && (
           <>
             <DetailRow icon="code" label="Facility Code" value={user.facility.code} />
@@ -41,6 +52,16 @@ export function ProfileScreen() {
           </>
         )}
       </AppCard>
+
+      {canManageUsers(user.role) && (
+        <AppButton
+          title="Manage users"
+          variant="secondary"
+          onPress={() => nav.navigate('Users')}
+          style={{ marginTop: spacing.lg }}
+          icon={<Ionicons name="people-outline" size={20} color={colors.primary} />}
+        />
+      )}
 
       <AppCard style={{ marginTop: spacing.lg }}>
         <DetailRow icon="information-circle" label="App Version" value="1.0.0" />

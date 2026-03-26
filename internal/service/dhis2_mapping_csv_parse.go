@@ -147,7 +147,7 @@ func normalizeCategoryAge(s string) (string, bool) {
 	case strings.Contains(s, "<15") || strings.Contains(strings.ToLower(s), "below 15"):
 		return "BELOW_15", true
 	case strings.Contains(s, "15-19"):
-		return "16_19", true
+		return "15_19", true
 	case strings.Contains(s, "20-24"):
 		return "20_24", true
 	case strings.Contains(s, "25-49"):

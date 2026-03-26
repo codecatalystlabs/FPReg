@@ -8,6 +8,7 @@ import { LoadingState } from '../components/LoadingState';
 import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
 import { registrationsApi, RegistrationListParams } from '../api/registrations';
+import { useAuthStore } from '../store/authStore';
 import { colors, spacing, radii, typography } from '../theme';
 import type { FPRegistration, PaginationMeta } from '../types';
 import type { MainStackParamList } from '../navigation/MainNavigator';
@@ -16,6 +17,8 @@ type NavProp = NativeStackNavigationProp<MainStackParamList>;
 
 export function SubmissionsScreen() {
   const nav = useNavigation<NavProp>();
+  const role = useAuthStore((s) => s.user?.role);
+  const showFacility = role === 'superadmin' || role === 'district_biostatistician';
   const [items, setItems] = useState<FPRegistration[]>([]);
   const [meta, setMeta] = useState<PaginationMeta | null>(null);
   const [search, setSearch] = useState('');
@@ -92,6 +95,7 @@ export function SubmissionsScreen() {
         renderItem={({ item }) => (
           <SubmissionListItem
             item={item}
+            showFacility={showFacility}
             onPress={() => nav.navigate('SubmissionDetail', { id: item.id })}
           />
         )}

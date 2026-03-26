@@ -13,7 +13,7 @@ type DHIS2MappingItem struct {
 	MethodName             string    `gorm:"size:200;not null" json:"method_name"`
 	Subgroup               string    `gorm:"size:20" json:"subgroup"`
 	VisitType              string    `gorm:"size:20;not null" json:"visit_type"`    // NEW or REVISIT
-	AgeGroup               string    `gorm:"size:20;not null" json:"age_group"`     // BELOW_15, 16_19, etc.
+	AgeGroup               string    `gorm:"size:20;not null" json:"age_group"`     // BELOW_15, 15_19, 20_24, …
 	DHIS2DataElementUID    string    `gorm:"size:64" json:"dhis2_data_element_uid"` // nullable – required for active rows
 	DHIS2CatOptionComboUID string    `gorm:"size:64" json:"dhis2_cat_option_combo_uid"`
 	Active                 bool      `gorm:"default:true" json:"active"`

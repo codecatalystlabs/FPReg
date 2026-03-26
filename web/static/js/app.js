@@ -174,7 +174,7 @@ const App = {
     if (!adminNavRoles.includes(role)) {
       document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
     }
-    const auditNavRoles = ['superadmin', 'facility_admin'];
+    const auditNavRoles = ['superadmin', 'facility_admin', 'district_biostatistician'];
     if (!auditNavRoles.includes(role)) {
       document.querySelectorAll('.facility-admin-audit').forEach(el => el.style.display = 'none');
     }

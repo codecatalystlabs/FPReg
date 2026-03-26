@@ -124,6 +124,20 @@ func (h *FacilityHandler) GetByID(c *gin.Context) {
 		utils.RespondNotFound(c, "Facility")
 		return
 	}
+	roleVal, _ := c.Get("user_role")
+	role, _ := roleVal.(models.Role)
+	if role == models.RoleDistrictBiostatistician {
+		d := middleware.GetUserDistrict(c)
+		if d == "" {
+			utils.RespondError(c, http.StatusForbidden, "No district assigned to your account")
+			return
+		}
+		ok, err := h.facilitySvc.FacilityBelongsToDistrict(id, d)
+		if err != nil || !ok {
+			utils.RespondNotFound(c, "Facility")
+			return
+		}
+	}
 	utils.RespondOK(c, f)
 }
 

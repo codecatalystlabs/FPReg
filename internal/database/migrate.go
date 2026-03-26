@@ -34,6 +34,8 @@ func Migrate(db *gorm.DB) {
 
 	createIndexes(db)
 
+	renameFPAgeBand15to19(db)
+
 	dhisRepo := repository.NewDHIS2Repository(db)
 	if n, err := dhisRepo.SyncOrgUnitMappingsFromFacilities(); err != nil {
 		log.Printf("Warning: org_unit_mappings sync from facilities: %v", err)
@@ -64,6 +66,30 @@ func Migrate(db *gorm.DB) {
 	}
 
 	log.Println("Database migration completed")
+}
+
+// renameFPAgeBand15to19 normalises the 15–19 age band key from legacy "16_19" to "15_19"
+// (tallies always included 15-year-olds; the old name and UI label mis‑matched DHIS2 "15-19Yrs").
+func renameFPAgeBand15to19(db *gorm.DB) {
+	r := db.Exec(`
+		UPDATE dhis2_mapping_items SET
+			local_indicator_key = REPLACE(local_indicator_key, '_16_19', '_15_19'),
+			age_group = CASE WHEN TRIM(BOTH FROM age_group) = '16_19' THEN '15_19' ELSE age_group END
+		WHERE position('_16_19' in local_indicator_key) > 0 OR TRIM(BOTH FROM age_group) = '16_19'`)
+	if r.Error != nil {
+		log.Printf("Warning: dhis2_mapping_items age band rename: %v", r.Error)
+	} else if r.RowsAffected > 0 {
+		log.Printf("dhis2_mapping_item: normalised age band 16_19 -> 15_19 on %d row(s)", r.RowsAffected)
+	}
+	r2 := db.Exec(`
+		UPDATE report_cell_sync_status SET
+			local_indicator_key = REPLACE(local_indicator_key, '_16_19', '_15_19')
+		WHERE position('_16_19' in local_indicator_key) > 0`)
+	if r2.Error != nil {
+		log.Printf("Warning: report_cell_sync_status age band rename: %v", r2.Error)
+	} else if r2.RowsAffected > 0 {
+		log.Printf("report_cell_sync_status: normalised local_indicator_key 16_19 -> 15_19 on %d row(s)", r2.RowsAffected)
+	}
 }
 
 func createIndexes(db *gorm.DB) {

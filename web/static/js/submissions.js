@@ -1,6 +1,18 @@
+function escapeHtml(s) {
+  if (s == null || s === '') return '';
+  const d = document.createElement('div');
+  d.textContent = String(s);
+  return d.innerHTML;
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   if (!App.requireAuth()) return;
   App.initSidebar();
+
+  const showFacilityCol = App.user && ['superadmin', 'district_biostatistician'].includes(App.user.role);
+  if (showFacilityCol) {
+    document.querySelectorAll('.submissions-facility-col').forEach((el) => el.classList.remove('d-none'));
+  }
 
   let currentPage = 1;
   const perPage = 25;
@@ -33,7 +45,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const paginationEl = document.getElementById('pagination');
     if (!tbody) return;
 
-    tbody.innerHTML = '<tr><td colspan="10" class="text-center py-4"><div class="spinner-border text-primary"></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" class="text-center py-4"><div class="spinner-border text-primary"></div></td></tr>';
 
     const params = new URLSearchParams({
       page: currentPage,
@@ -55,17 +67,23 @@ document.addEventListener('DOMContentLoaded', async () => {
       const meta = data.meta;
 
       if (items.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-4">No submissions found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-4">No submissions found</td></tr>';
         if (paginationEl) paginationEl.innerHTML = '';
         updateCount(0);
         return;
       }
 
+      const facCell = (r) => {
+        const v = r.facility ? escapeHtml(r.facility.name) : '–';
+        const cls = showFacilityCol ? 'submissions-facility-col' : 'submissions-facility-col d-none';
+        return `<td class="${cls}">${v}</td>`;
+      };
       tbody.innerHTML = items.map(r => `
         <tr>
           <td>${r.serial_number}</td>
           <td><span class="fw-semibold">${r.client_number || '<span class="text-muted">Visitor</span>'}</span></td>
           <td>${r.surname} ${r.given_name}</td>
+          ${facCell(r)}
           <td>${r.sex}</td>
           <td>${r.age}</td>
           <td>${r.visit_date}</td>
@@ -82,7 +100,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       updateCount(meta.total);
       renderPagination(paginationEl, meta);
     } catch (err) {
-      tbody.innerHTML = '<tr><td colspan="10" class="text-center text-danger py-4">Failed to load submissions</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="11" class="text-center text-danger py-4">Failed to load submissions</td></tr>';
     }
   }
 

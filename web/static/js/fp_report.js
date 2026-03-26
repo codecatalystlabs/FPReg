@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     { code: 'FP14', name: 'Male Condoms' },
   ];
 
-  const AGE_KEYS = ['BELOW_15', '16_19', '20_24', '25_49', '50_PLUS'];
+  const AGE_KEYS = ['BELOW_15', '15_19', '20_24', '25_49', '50_PLUS'];
 
   function escapeHtml(s) {
     const d = document.createElement('div');
@@ -73,12 +73,66 @@ document.addEventListener('DOMContentLoaded', async () => {
     return all;
   }
 
+  const userRole = App.user && App.user.role;
+  const lockedFacilityRoles = ['facility_user', 'reviewer', 'facility_admin'];
+
+  function canPostToDHIS2() {
+    return ['superadmin', 'facility_admin', 'district_biostatistician'].includes(userRole);
+  }
+
+  function canPreviewDHIS2() {
+    return userRole !== 'facility_user';
+  }
+
+  function applyDhis2ControlsVisibility() {
+    const wrap = document.getElementById('fpReportDhis2Controls');
+    if (!wrap) return;
+    if (!canPreviewDHIS2()) {
+      wrap.classList.add('d-none');
+      return;
+    }
+    wrap.classList.remove('d-none');
+    if (!canPostToDHIS2()) {
+      if (btnSync) btnSync.classList.add('d-none');
+      const fc = forceResyncEl && forceResyncEl.closest('.form-check');
+      if (fc) fc.classList.add('d-none');
+    }
+  }
+
   async function loadFacilitiesDropdown() {
+    const sel = facilityEl;
+    const helpEl = document.getElementById('facilityFilterHelp');
+
+    if (lockedFacilityRoles.includes(userRole) && App.user && App.user.facility_id) {
+      let f = App.user.facility;
+      if (!f) {
+        try {
+          const res = await App.api('GET', `/facilities/${App.user.facility_id}`);
+          f = res.data;
+        } catch (e) {
+          console.error(e);
+          App.showToast('Could not load your facility', 'error');
+        }
+      }
+      sel.innerHTML = '';
+      const opt = document.createElement('option');
+      opt.value = App.user.facility_id;
+      opt.textContent = f ? `${f.name} (${f.code})` : 'Your facility';
+      sel.appendChild(opt);
+      sel.value = App.user.facility_id;
+      sel.disabled = true;
+      if (helpEl) {
+        helpEl.textContent =
+          'Your assigned facility (read-only). The monthly table includes only this site.';
+      }
+      return;
+    }
+
     try {
       const list = await fetchAllFacilities();
-      const sel = facilityEl;
       const keep = sel.value;
-      sel.innerHTML = '<option value="">All allowed facilities (table shows combined totals)</option>';
+      sel.disabled = false;
+      sel.innerHTML = '<option value="">All allowed facilities (combined totals in table)</option>';
       list.forEach((f) => {
         const opt = document.createElement('option');
         opt.value = f.id;
@@ -86,18 +140,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         sel.appendChild(opt);
       });
       const uid = App.user && App.user.facility_id;
-      if (uid && Array.from(sel.options).some((o) => o.value === uid)) {
+      if (userRole !== 'superadmin' && uid && Array.from(sel.options).some((o) => o.value === uid)) {
         sel.value = uid;
       } else if (keep && Array.from(sel.options).some((o) => o.value === keep)) {
         sel.value = keep;
+      }
+      if (helpEl) {
+        if (userRole === 'superadmin') {
+          helpEl.textContent =
+            'Leave as “all” for national totals, or choose one facility (required for DHIS2 sync).';
+        } else if (userRole === 'district_biostatistician') {
+          helpEl.textContent =
+            'Leave as “all” for your whole district, or pick one facility. DHIS2 uses each facility’s org unit.';
+        } else {
+          helpEl.textContent = 'Choose a facility to filter the table.';
+        }
       }
     } catch (e) {
       console.error(e);
       App.showToast('Could not load facility list', 'error');
     }
   }
-
-  await loadFacilitiesDropdown();
 
   function currentPeriod() {
     const year = parseInt(yearEl.value, 10);
@@ -110,8 +173,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const matrix = {};
     METHODS.forEach((m) => {
       matrix[m.code] = {
-        NEW: { BELOW_15: 0, '16_19': 0, '20_24': 0, '25_49': 0, '50_PLUS': 0 },
-        REVISIT: { BELOW_15: 0, '16_19': 0, '20_24': 0, '25_49': 0, '50_PLUS': 0 },
+        NEW: { BELOW_15: 0, '15_19': 0, '20_24': 0, '25_49': 0, '50_PLUS': 0 },
+        REVISIT: { BELOW_15: 0, '15_19': 0, '20_24': 0, '25_49': 0, '50_PLUS': 0 },
       };
     });
     return matrix;
@@ -309,4 +372,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   btn.addEventListener('click', loadReport);
   if (btnPreview) btnPreview.addEventListener('click', previewDHIS2);
   if (btnSync) btnSync.addEventListener('click', syncToDHIS2);
+
+  await loadFacilitiesDropdown();
+  applyDhis2ControlsVisibility();
+  loadReport();
 });

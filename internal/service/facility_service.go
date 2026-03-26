@@ -77,6 +77,11 @@ func (s *FacilityService) GetByID(id uuid.UUID) (*models.Facility, error) {
 	return s.repo.FindByID(id)
 }
 
+// FacilityBelongsToDistrict reports whether a facility’s district matches (case-insensitive).
+func (s *FacilityService) FacilityBelongsToDistrict(facilityID uuid.UUID, district string) (bool, error) {
+	return s.repo.FacilityBelongsToDistrict(facilityID, district)
+}
+
 func (s *FacilityService) List(page, perPage int, search string) ([]models.Facility, int64, error) {
 	return s.repo.List(page, perPage, search)
 }

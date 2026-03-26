@@ -79,7 +79,7 @@ func main() {
 	facilityHandler := handler.NewFacilityHandler(facilitySvc)
 	optionSetHandler := handler.NewOptionSetHandler(optionSetRepo)
 	registrationHandler := handler.NewRegistrationHandler(registrationSvc, facilityRepo)
-	auditHandler := handler.NewAuditHandler(auditSvc)
+	auditHandler := handler.NewAuditHandler(auditSvc, facilityRepo, userSvc)
 	fpReportHandler := handler.NewFPReportHandler(fpReportSvc, facilityRepo, dhisRepo, dhisSyncSvc)
 
 	r := gin.Default()

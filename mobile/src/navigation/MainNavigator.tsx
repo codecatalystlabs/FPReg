@@ -14,12 +14,16 @@ import { NewRegistrationScreen } from '../screens/NewRegistrationScreen';
 import { EditRegistrationScreen } from '../screens/EditRegistrationScreen';
 import { GuideScreen } from '../screens/GuideScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
+import { UsersScreen } from '../screens/UsersScreen';
+import { CreateUserScreen } from '../screens/CreateUserScreen';
 
 export type MainStackParamList = {
   Tabs: undefined;
   SubmissionDetail: { id: string };
   NewRegistration: undefined;
   EditRegistration: { id: string };
+  Users: undefined;
+  CreateUser: undefined;
 };
 
 export type TabParamList = {
@@ -114,6 +118,24 @@ export function MainNavigator() {
         component={EditRegistrationScreen}
         options={{
           title: 'Edit Registration',
+          headerStyle: { backgroundColor: colors.surface },
+          headerTitleStyle: { ...typography.h4 },
+        }}
+      />
+      <Stack.Screen
+        name="Users"
+        component={UsersScreen}
+        options={{
+          title: 'Users',
+          headerStyle: { backgroundColor: colors.surface },
+          headerTitleStyle: { ...typography.h4 },
+        }}
+      />
+      <Stack.Screen
+        name="CreateUser"
+        component={CreateUserScreen}
+        options={{
+          title: 'Create user',
           headerStyle: { backgroundColor: colors.surface },
           headerTitleStyle: { ...typography.h4 },
         }}
