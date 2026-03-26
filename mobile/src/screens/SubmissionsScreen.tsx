@@ -1,7 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { View, FlatList, TextInput, StyleSheet } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { SubmissionListItem } from '../components/SubmissionListItem';
 import { LoadingState } from '../components/LoadingState';
@@ -11,12 +10,10 @@ import { registrationsApi, RegistrationListParams } from '../api/registrations';
 import { useAuthStore } from '../store/authStore';
 import { colors, spacing, radii, typography } from '../theme';
 import type { FPRegistration, PaginationMeta } from '../types';
-import type { MainStackParamList } from '../navigation/MainNavigator';
-
-type NavProp = NativeStackNavigationProp<MainStackParamList>;
+import { navigateToMainStack } from '../navigation/navigationHelpers';
 
 export function SubmissionsScreen() {
-  const nav = useNavigation<NavProp>();
+  const nav = useNavigation();
   const role = useAuthStore((s) => s.user?.role);
   const showFacility = role === 'superadmin' || role === 'district_biostatistician';
   const [items, setItems] = useState<FPRegistration[]>([]);
@@ -96,7 +93,7 @@ export function SubmissionsScreen() {
           <SubmissionListItem
             item={item}
             showFacility={showFacility}
-            onPress={() => nav.navigate('SubmissionDetail', { id: item.id })}
+            onPress={() => navigateToMainStack(nav, 'SubmissionDetail', { id: item.id })}
           />
         )}
         contentContainerStyle={styles.list}
