@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, typography } from '../theme';
 import { useAuthStore } from '../store/authStore';
-import { canCreateRegistration } from '../utils/permissions';
+import { canCreateRegistration, canManageUsers } from '../utils/permissions';
 
 import { DashboardScreen } from '../screens/DashboardScreen';
 import { SubmissionsScreen } from '../screens/SubmissionsScreen';
@@ -29,6 +29,7 @@ export type MainStackParamList = {
 export type TabParamList = {
   Home: undefined;
   NewEntry: undefined;
+  Team: undefined;
   Submissions: undefined;
   Guide: undefined;
   Profile: undefined;
@@ -40,6 +41,7 @@ const Tab = createBottomTabNavigator<TabParamList>();
 function TabNavigator() {
   const user = useAuthStore((s) => s.user);
   const showNewEntry = user ? canCreateRegistration(user.role) : false;
+  const showTeam = user ? canManageUsers(user.role) : false;
   const insets = useSafeAreaInsets();
 
   return (
@@ -49,6 +51,7 @@ function TabNavigator() {
           const icons: Record<string, keyof typeof Ionicons.glyphMap> = {
             Home: focused ? 'home' : 'home-outline',
             NewEntry: focused ? 'add-circle' : 'add-circle-outline',
+            Team: focused ? 'people' : 'people-outline',
             Submissions: focused ? 'list' : 'list-outline',
             Guide: focused ? 'book' : 'book-outline',
             Profile: focused ? 'person' : 'person-outline',
@@ -83,6 +86,9 @@ function TabNavigator() {
       <Tab.Screen name="Home" component={DashboardScreen} options={{ title: 'Dashboard' }} />
       {showNewEntry && (
         <Tab.Screen name="NewEntry" component={NewRegistrationScreen} options={{ title: 'New Entry' }} />
+      )}
+      {showTeam && (
+        <Tab.Screen name="Team" component={UsersScreen} options={{ title: 'Team' }} />
       )}
       <Tab.Screen name="Submissions" component={SubmissionsScreen} />
       <Tab.Screen name="Guide" component={GuideScreen} />

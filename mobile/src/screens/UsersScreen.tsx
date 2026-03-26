@@ -1,7 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { View, Text, FlatList, StyleSheet, RefreshControl } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { usersApi } from '../api/users';
 import { LoadingState } from '../components/LoadingState';
@@ -10,12 +9,10 @@ import { AppButton } from '../components/AppButton';
 import { useAuthStore } from '../store/authStore';
 import { colors, spacing, typography, radii, shadows } from '../theme';
 import type { User } from '../types';
-import type { MainStackParamList } from '../navigation/MainNavigator';
-
-type NavProp = NativeStackNavigationProp<MainStackParamList>;
+import { navigateToMainStack } from '../navigation/navigationHelpers';
 
 export function UsersScreen() {
-  const nav = useNavigation<NavProp>();
+  const nav = useNavigation();
   const me = useAuthStore((s) => s.user);
   const [items, setItems] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,7 +40,11 @@ export function UsersScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.actions}>
-        <AppButton title="Create user" onPress={() => nav.navigate('CreateUser')} size="md" />
+        <AppButton
+          title="Create user"
+          onPress={() => navigateToMainStack(nav, 'CreateUser')}
+          size="md"
+        />
       </View>
       <FlatList
         data={items}

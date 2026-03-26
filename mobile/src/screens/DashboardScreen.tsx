@@ -1,7 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { View, Text, ScrollView, RefreshControl, TouchableOpacity, StyleSheet } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { AppCard } from '../components/AppCard';
 import { AppButton } from '../components/AppButton';
@@ -10,16 +9,13 @@ import { EmptyState } from '../components/EmptyState';
 import { useAuthStore } from '../store/authStore';
 import { useOptionSetStore } from '../store/optionSetStore';
 import { registrationsApi } from '../api/registrations';
-import { canCreateRegistration } from '../utils/permissions';
+import { canCreateRegistration, canManageUsers } from '../utils/permissions';
+import { navigateToMainStack } from '../navigation/navigationHelpers';
 import { todayISO } from '../utils/format';
 import { colors, spacing, typography, radii, shadows } from '../theme';
 import type { FPRegistration } from '../types';
-import type { MainStackParamList } from '../navigation/MainNavigator';
-
-type NavProp = NativeStackNavigationProp<MainStackParamList>;
-
 export function DashboardScreen() {
-  const nav = useNavigation<NavProp>();
+  const nav = useNavigation();
   const user = useAuthStore((s) => s.user);
   const fetchOptionSets = useOptionSetStore((s) => s.fetchAll);
 
@@ -86,9 +82,20 @@ export function DashboardScreen() {
       {user && canCreateRegistration(user.role) && (
         <AppButton
           title="New Registration"
-          onPress={() => nav.navigate('NewRegistration')}
+          onPress={() => navigateToMainStack(nav, 'NewRegistration')}
           size="lg"
           icon={<Ionicons name="add-circle" size={20} color={colors.textInverse} />}
+          style={{ marginBottom: spacing.md }}
+        />
+      )}
+
+      {user && canManageUsers(user.role) && (
+        <AppButton
+          title="Team & accounts"
+          variant="secondary"
+          onPress={() => navigateToMainStack(nav, 'Users')}
+          size="lg"
+          icon={<Ionicons name="people-outline" size={20} color={colors.primary} />}
           style={{ marginBottom: spacing.xl }}
         />
       )}
@@ -106,7 +113,7 @@ export function DashboardScreen() {
           <SubmissionListItem
             key={item.id}
             item={item}
-            onPress={() => nav.navigate('SubmissionDetail', { id: item.id })}
+            onPress={() => navigateToMainStack(nav, 'SubmissionDetail', { id: item.id })}
           />
         ))
       )}

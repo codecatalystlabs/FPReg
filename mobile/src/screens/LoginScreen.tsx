@@ -96,6 +96,11 @@ export function LoginScreen() {
               size="lg"
               style={{ marginTop: spacing.sm }}
             />
+
+            <Text style={styles.hint}>
+              New accounts are issued by your facility admin, district biostatistician, or system
+              administrator—there is no self-registration in this app.
+            </Text>
           </View>
 
           <Text style={styles.footer}>Ministry of Health — Uganda</Text>
@@ -142,6 +147,13 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   errorText: { ...typography.bodySmall, color: colors.danger, flex: 1 },
+  hint: {
+    ...typography.caption,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginTop: spacing.lg,
+    lineHeight: 18,
+  },
   footer: {
     ...typography.caption,
     color: 'rgba(255,255,255,0.35)',
