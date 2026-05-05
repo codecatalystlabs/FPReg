@@ -2,6 +2,7 @@ import type { Role } from '../types';
 
 const ADMIN_ROLES: Role[] = ['superadmin', 'facility_admin'];
 const DISTRICT_ADMIN_ROLES: Role[] = ['superadmin', 'facility_admin', 'district_biostatistician'];
+/** Roles that may create/edit FP registrations (reviewer is read-only). */
 const WRITE_ROLES: Role[] = ['superadmin', 'facility_admin', 'facility_user', 'district_biostatistician'];
 
 export function canCreateRegistration(role: Role): boolean {

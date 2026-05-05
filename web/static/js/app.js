@@ -182,6 +182,13 @@ const App = {
       document.querySelectorAll('.superadmin-only').forEach(el => el.style.display = 'none');
     }
 
+    // Reviewer: read-only for FP register data entry (sidebar + dashboard/submissions CTAs)
+    if (role === 'reviewer') {
+      document.querySelectorAll('a[href*="/register"]').forEach((el) => {
+        el.style.display = 'none';
+      });
+    }
+
     const path = window.location.pathname;
     document.querySelectorAll('.sidebar .nav-link').forEach(link => {
       const href = link.getAttribute('href');

@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, typography } from '../theme';
 import { useAuthStore } from '../store/authStore';
 import { canCreateRegistration, canManageUsers } from '../utils/permissions';
+import { getFloatingTabBarBottomInset } from './tabBarInset';
 
 import { DashboardScreen } from '../screens/DashboardScreen';
 import { SubmissionsScreen } from '../screens/SubmissionsScreen';
@@ -43,10 +44,12 @@ function TabNavigator() {
   const showNewEntry = user ? canCreateRegistration(user.role) : false;
   const showTeam = user ? canManageUsers(user.role) : false;
   const insets = useSafeAreaInsets();
+  const tabSceneBottomInset = getFloatingTabBarBottomInset(insets);
 
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
+        sceneStyle: { paddingBottom: tabSceneBottomInset },
         tabBarIcon: ({ focused, color, size }) => {
           const icons: Record<string, keyof typeof Ionicons.glyphMap> = {
             Home: focused ? 'home' : 'home-outline',

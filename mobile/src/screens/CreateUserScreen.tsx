@@ -29,6 +29,13 @@ function rolesForCreator(meRole: Role | undefined): { value: string; label: stri
       { value: 'district_biostatistician', label: 'District biostatistician' },
     ];
   }
+  if (meRole === 'district_biostatistician') {
+    return [
+      { value: 'facility_user', label: 'Facility user' },
+      { value: 'reviewer', label: 'Reviewer' },
+      { value: 'facility_admin', label: 'Facility admin' },
+    ];
+  }
   return [
     { value: 'facility_user', label: 'Facility user' },
     { value: 'reviewer', label: 'Reviewer' },

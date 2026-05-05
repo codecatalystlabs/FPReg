@@ -65,8 +65,15 @@ func (s *UserService) CanActorAccessUser(actorID, targetID uuid.UUID) bool {
 		}
 		return *actor.FacilityID == *target.FacilityID
 	case models.RoleDistrictBiostatistician:
-		if target.Role == models.RoleSuperAdmin || target.Role == models.RoleFacilityAdmin {
+		if target.Role == models.RoleSuperAdmin {
 			return false
+		}
+		if target.Role == models.RoleFacilityAdmin {
+			if target.FacilityID == nil {
+				return false
+			}
+			ok, err := s.facilityRepo.FacilityBelongsToDistrict(*target.FacilityID, actor.District)
+			return err == nil && ok
 		}
 		if target.Role == models.RoleDistrictBiostatistician {
 			return actor.ID == target.ID
@@ -287,8 +294,8 @@ func (s *UserService) Update(id uuid.UUID, input CreateUserInput, actorID uuid.U
 		if user.Role == models.RoleDistrictBiostatistician && user.ID != actor.ID {
 			return nil, errors.New("cannot modify another district biostatistician")
 		}
-		if newRole != models.RoleFacilityUser && newRole != models.RoleReviewer {
-			return nil, errors.New("you can only assign Facility User or Reviewer roles")
+		if newRole != models.RoleFacilityUser && newRole != models.RoleReviewer && newRole != models.RoleFacilityAdmin {
+			return nil, errors.New("you can only assign Facility User, Reviewer, or Facility Admin roles")
 		}
 		if input.FacilityID == nil {
 			return nil, errors.New("facility is required")
@@ -359,10 +366,18 @@ func (s *UserService) Deactivate(id uuid.UUID, actorID uuid.UUID, ip, ua string)
 			return errors.New("you can only deactivate users in your facility")
 		}
 	case models.RoleDistrictBiostatistician:
-		if user.Role == models.RoleSuperAdmin || user.Role == models.RoleFacilityAdmin || user.Role == models.RoleDistrictBiostatistician {
+		if user.Role == models.RoleSuperAdmin || user.Role == models.RoleDistrictBiostatistician {
 			return errors.New("cannot deactivate this user")
 		}
-		if !s.userBelongsToDistrict(user, actor.District) {
+		if user.Role == models.RoleFacilityAdmin {
+			if user.FacilityID == nil {
+				return errors.New("cannot deactivate this user")
+			}
+			ok, err := s.facilityRepo.FacilityBelongsToDistrict(*user.FacilityID, actor.District)
+			if err != nil || !ok {
+				return errors.New("forbidden")
+			}
+		} else if !s.userBelongsToDistrict(user, actor.District) {
 			return errors.New("forbidden")
 		}
 	case models.RoleSuperAdmin:

@@ -228,7 +228,7 @@
       }
       if (currentRole === 'district_biostatistician') {
         const roleSelect = document.getElementById('u_role');
-        ['superadmin', 'facility_admin', 'district_biostatistician'].forEach(val => {
+        ['superadmin', 'district_biostatistician'].forEach(val => {
           const opt = Array.from(roleSelect.options).find(o => o.value === val);
           if (opt) roleSelect.removeChild(opt);
         });

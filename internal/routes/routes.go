@@ -123,11 +123,15 @@ func Setup(r *gin.Engine, h Handlers, authSvc *service.AuthService, auditSvc *se
 	registrations := api.Group("/registrations")
 	registrations.Use(middleware.AuthRequired(authSvc))
 	registrations.Use(middleware.FacilityScoped())
+	regWrite := middleware.RoleRequired(
+		models.RoleSuperAdmin, models.RoleFacilityAdmin, models.RoleFacilityUser,
+		models.RoleDistrictBiostatistician,
+	)
 	{
 		registrations.GET("", h.Registration.List)
 		registrations.GET("/:id", h.Registration.GetByID)
-		registrations.POST("", h.Registration.Create)
-		registrations.PUT("/:id", h.Registration.Update)
+		registrations.POST("", regWrite, h.Registration.Create)
+		registrations.PUT("/:id", regWrite, h.Registration.Update)
 		registrations.DELETE("/:id", middleware.RoleRequired(
 			models.RoleSuperAdmin, models.RoleFacilityAdmin,
 		), h.Registration.Delete)
